@@ -3,11 +3,24 @@ import type {
   Json,
   PlaceTip,
   TypedBusinessInfo,
+  WifiNetwork,
 } from "../@types/database.types";
 import { supabase } from "../lib/supabase";
-import { extractEmbedUrl } from "../utils/embedUrl";
+import {
+  extractEmbedUrl,
+  extractInstagramHandle,
+  extractPhoneDigits,
+} from "../utils/embedUrl";
 
 export const DEFAULT_BUSINESS_METADATA: BusinessInfoMetadata = {
+  wifi_networks: [
+    {
+      id: "wifi-1",
+      label: "Recepção / Piscina",
+      ssid: "MoradasDoGabriel_5G",
+      password: "bemvindomoradas",
+    },
+  ],
   wifi: {
     ssid: "MoradasDoGabriel_5G",
     password: "bemvindomoradas",
@@ -73,6 +86,7 @@ function isRecord(
 /**
  * Normaliza o objeto `metadata` vindo do banco para garantir que todos os campos
  * da interface `BusinessInfoMetadata` existam com tipagem segura.
+ * Mantém retrocompatibilidade convertendo o campo antigo `wifi` em `wifi_networks` (array de 1 item).
  */
 export function normalizeBusinessMetadata(
   raw: Json | null | undefined,
@@ -81,9 +95,51 @@ export function normalizeBusinessMetadata(
     return structuredClone(DEFAULT_BUSINESS_METADATA);
   }
 
-  const rawWifi = isRecord(raw.wifi) ? raw.wifi : {};
+  const rawWifi = isRecord(raw.wifi) ? raw.wifi : null;
   const rawLocation = isRecord(raw.location) ? raw.location : {};
   const rawContacts = isRecord(raw.contacts) ? raw.contacts : {};
+
+  let wifi_networks: WifiNetwork[];
+
+  if (Array.isArray(raw.wifi_networks)) {
+    wifi_networks = raw.wifi_networks
+      .filter(isRecord)
+      .map((item, idx) => ({
+        id:
+          typeof item.id === "string" && item.id.trim()
+            ? item.id.trim()
+            : `wifi-${idx + 1}`,
+        label: typeof item.label === "string" ? item.label.trim() : "",
+        ssid: typeof item.ssid === "string" ? item.ssid.trim() : "",
+        password:
+          typeof item.password === "string" ? item.password.trim() : "",
+      }))
+      .filter((item) => item.ssid !== "" || item.password !== "");
+  } else if (rawWifi) {
+    const legacySsid =
+      typeof rawWifi.ssid === "string" ? rawWifi.ssid.trim() : "";
+    const legacyPassword =
+      typeof rawWifi.password === "string" ? rawWifi.password.trim() : "";
+    const legacyLabel =
+      typeof rawWifi.label === "string" ? rawWifi.label.trim() : "";
+
+    if (legacySsid || legacyPassword) {
+      wifi_networks = [
+        {
+          id: "wifi-1",
+          label: legacyLabel,
+          ssid: legacySsid,
+          password: legacyPassword,
+        },
+      ];
+    } else {
+      wifi_networks = structuredClone(DEFAULT_BUSINESS_METADATA.wifi_networks);
+    }
+  } else {
+    wifi_networks = structuredClone(DEFAULT_BUSINESS_METADATA.wifi_networks);
+  }
+
+  const primaryWifi = wifi_networks[0] ?? { ssid: "", password: "" };
 
   const rules: string[] = Array.isArray(raw.rules)
     ? raw.rules
@@ -109,15 +165,10 @@ export function normalizeBusinessMetadata(
     : DEFAULT_BUSINESS_METADATA.places_tips;
 
   return {
+    wifi_networks,
     wifi: {
-      ssid:
-        typeof rawWifi.ssid === "string"
-          ? rawWifi.ssid
-          : DEFAULT_BUSINESS_METADATA.wifi.ssid,
-      password:
-        typeof rawWifi.password === "string"
-          ? rawWifi.password
-          : DEFAULT_BUSINESS_METADATA.wifi.password,
+      ssid: primaryWifi.ssid,
+      password: primaryWifi.password,
     },
     location: {
       address:
@@ -146,15 +197,15 @@ export function normalizeBusinessMetadata(
     contacts: {
       whatsapp:
         typeof rawContacts.whatsapp === "string"
-          ? rawContacts.whatsapp
+          ? extractPhoneDigits(rawContacts.whatsapp)
           : DEFAULT_BUSINESS_METADATA.contacts.whatsapp,
       phone:
         typeof rawContacts.phone === "string"
-          ? rawContacts.phone
+          ? extractPhoneDigits(rawContacts.phone)
           : DEFAULT_BUSINESS_METADATA.contacts.phone,
       instagram:
         typeof rawContacts.instagram === "string"
-          ? rawContacts.instagram
+          ? extractInstagramHandle(rawContacts.instagram)
           : DEFAULT_BUSINESS_METADATA.contacts.instagram,
     },
   };
@@ -225,10 +276,38 @@ export interface SaveBusinessInfoInput {
 export async function saveBusinessInfo(
   input: SaveBusinessInfoInput,
 ): Promise<TypedBusinessInfo> {
+  const rawNetworks = Array.isArray(input.metadata.wifi_networks)
+    ? input.metadata.wifi_networks
+    : input.metadata.wifi
+      ? [
+          {
+            id: "wifi-1",
+            label: "",
+            ssid: input.metadata.wifi.ssid,
+            password: input.metadata.wifi.password,
+          },
+        ]
+      : [];
+
+  const sanitizedWifiNetworks: WifiNetwork[] = rawNetworks
+    .map((net, idx) => ({
+      id: net.id?.trim() || `wifi-${idx + 1}`,
+      label: (net.label ?? "").trim(),
+      ssid: net.ssid.trim(),
+      password: net.password.trim(),
+    }))
+    .filter((net) => net.ssid !== "" || net.password !== "");
+
+  const primaryWifi = sanitizedWifiNetworks[0] ?? {
+    ssid: "",
+    password: "",
+  };
+
   const sanitizedMetadata: BusinessInfoMetadata = {
+    wifi_networks: sanitizedWifiNetworks,
     wifi: {
-      ssid: input.metadata.wifi.ssid.trim(),
-      password: input.metadata.wifi.password.trim(),
+      ssid: primaryWifi.ssid,
+      password: primaryWifi.password,
     },
     location: {
       address: input.metadata.location.address.trim(),
@@ -247,9 +326,9 @@ export async function saveBusinessInfo(
       }))
       .filter((p) => p.name !== ""),
     contacts: {
-      whatsapp: input.metadata.contacts.whatsapp.trim(),
-      phone: input.metadata.contacts.phone.trim(),
-      instagram: input.metadata.contacts.instagram.trim(),
+      whatsapp: extractPhoneDigits(input.metadata.contacts.whatsapp),
+      phone: extractPhoneDigits(input.metadata.contacts.phone),
+      instagram: extractInstagramHandle(input.metadata.contacts.instagram),
     },
   };
 

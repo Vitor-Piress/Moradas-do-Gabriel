@@ -69,7 +69,7 @@ export async function trackLinkClick(
 
 /**
  * Registra uma interação no Guia do Hóspede (`guide_interaction`)
- * utilizando `event_target` (ex: 'copy_wifi', 'open_maps', 'open_waze', etc.).
+ * utilizando `event_target` (ex: 'copy_wifi_' + ssid, 'open_maps', 'open_waze', etc.).
  */
 export async function trackGuideInteraction(
   eventTarget: string,
@@ -148,7 +148,11 @@ export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
       totalGuideInteractions += 1;
       const target = (ev.event_target || "").toLowerCase();
 
-      if (target === "copy_wifi" || target.includes("wifi")) {
+      if (
+        target === "copy_wifi" ||
+        target.startsWith("copy_wifi_") ||
+        target.includes("wifi")
+      ) {
         wifiCopies += 1;
       } else if (target === "open_maps" || target.includes("maps")) {
         mapsClicks += 1;

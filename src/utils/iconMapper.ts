@@ -13,7 +13,6 @@ import {
   Link as LinkIcon,
   Mail,
   MapPin,
-  MessageCircle,
   Navigation,
   Palmtree,
   Phone,
@@ -27,18 +26,84 @@ import {
   Wifi,
   type LucideIcon,
 } from "lucide-react";
+import { createElement, type ComponentType, type SVGProps } from "react";
+
+export type PortalIcon =
+  | LucideIcon
+  | ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
+
+/**
+ * Ícone SVG Oficial do WhatsApp
+ */
+export function WhatsAppIcon(props: SVGProps<SVGSVGElement>) {
+  return createElement(
+    "svg",
+    {
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.9,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": "true",
+      ...props,
+    },
+    createElement("path", {
+      d: "M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21",
+    }),
+    createElement("path", {
+      d: "M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1",
+    }),
+  );
+}
+
+/**
+ * Ícone SVG Oficial do Instagram
+ */
+export function InstagramIcon(props: SVGProps<SVGSVGElement>) {
+  return createElement(
+    "svg",
+    {
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.9,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": "true",
+      ...props,
+    },
+    createElement("rect", {
+      width: "20",
+      height: "20",
+      x: "2",
+      y: "2",
+      rx: "5",
+      ry: "5",
+    }),
+    createElement("path", {
+      d: "M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z",
+    }),
+    createElement("line", {
+      x1: "17.5",
+      x2: "17.51",
+      y1: "6.5",
+      y2: "6.5",
+    }),
+  );
+}
 
 export interface IconOption {
   value: string;
   label: string;
-  icon: LucideIcon;
+  icon: PortalIcon;
 }
 
 export const AVAILABLE_LINK_ICONS: IconOption[] = [
-  { value: "whatsapp", label: "WhatsApp / Atendimento", icon: MessageCircle },
+  { value: "whatsapp", label: "WhatsApp / Atendimento", icon: WhatsAppIcon },
   { value: "calendar", label: "Reservas / Calendário", icon: Calendar },
   { value: "bed", label: "Acomodações / Suítes", icon: BedDouble },
-  { value: "instagram", label: "Instagram", icon: Camera },
+  { value: "instagram", label: "Instagram", icon: InstagramIcon },
   { value: "map-pin", label: "Localização / Mapa", icon: MapPin },
   { value: "globe", label: "Site Oficial / Web", icon: Globe },
   { value: "phone", label: "Telefone", icon: Phone },
@@ -58,14 +123,14 @@ export const AVAILABLE_LINK_ICONS: IconOption[] = [
   { value: "link", label: "Link Padrão", icon: LinkIcon },
 ];
 
-const ICON_MAP: Record<string, LucideIcon> = {
-  whatsapp: MessageCircle,
-  "message-circle": MessageCircle,
-  messagecircle: MessageCircle,
+const ICON_MAP: Record<string, PortalIcon> = {
+  whatsapp: WhatsAppIcon,
+  "message-circle": WhatsAppIcon,
+  messagecircle: WhatsAppIcon,
   calendar: Calendar,
   bed: BedDouble,
   "bed-double": BedDouble,
-  instagram: Camera,
+  instagram: InstagramIcon,
   "map-pin": MapPin,
   mappin: MapPin,
   map: MapPin,
@@ -95,14 +160,14 @@ const ICON_MAP: Record<string, LucideIcon> = {
 };
 
 /**
- * Resolve o ícone Lucide ideal a partir do campo `icon` salvo no banco,
+ * Resolve o ícone ideal a partir do campo `icon` salvo no banco,
  * ou infere pelo título/URL caso `icon` esteja vazio.
  */
 export function resolveLinkIcon(
   iconName?: string | null,
   title?: string,
   url?: string,
-): LucideIcon {
+): PortalIcon {
   if (iconName) {
     const key = iconName.toLowerCase().trim();
     if (ICON_MAP[key]) {
@@ -117,10 +182,10 @@ export function resolveLinkIcon(
     combined.includes("atendimento") ||
     combined.includes("recepção")
   ) {
-    return MessageCircle;
+    return WhatsAppIcon;
   }
   if (combined.includes("instagram") || combined.includes("insta")) {
-    return Camera;
+    return InstagramIcon;
   }
   if (
     combined.includes("reserva") ||

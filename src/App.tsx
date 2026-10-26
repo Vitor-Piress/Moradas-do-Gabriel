@@ -21,7 +21,12 @@ export function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<HomePage />} />
+            <Route
+              path="/"
+              element={<Navigate to="/links-contato" replace />}
+            />
+            <Route path="/links-contato" element={<HomePage />} />
+            <Route path="/guia-do-hospede" element={<HomePage />} />
             <Route path="/site" element={<LandingPlaceholder />} />
             <Route path="/login" element={<LoginPage />} />
             <Route
@@ -32,7 +37,10 @@ export function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route
+              path="*"
+              element={<Navigate to="/links-contato" replace />}
+            />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

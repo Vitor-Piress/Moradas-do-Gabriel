@@ -248,6 +248,13 @@ export interface WifiMetadata {
   password: string
 }
 
+export interface WifiNetwork {
+  id?: string
+  label?: string
+  ssid: string
+  password: string
+}
+
 export interface LocationMetadata {
   address: string
   maps_url: string
@@ -277,7 +284,8 @@ export interface ContactsMetadata {
 }
 
 export interface BusinessInfoMetadata {
-  wifi: WifiMetadata
+  wifi_networks: WifiNetwork[]
+  wifi?: WifiMetadata
   location: LocationMetadata
   rules: string[]
   places_tips: PlaceTip[]

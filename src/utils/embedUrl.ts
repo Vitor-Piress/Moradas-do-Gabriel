@@ -29,6 +29,52 @@ export function containsIframeTag(input: string): boolean {
 }
 
 /**
+ * Extrai apenas os dígitos locais do telefone/WhatsApp (máx. 11 dígitos: DDD + 9 dígitos).
+ * Caso venha com o DDI 55 na frente (12 ou 13 dígitos), remove o prefixo 55 para padronizar.
+ */
+export function extractPhoneDigits(input: string): string {
+  let digits = (input || "").replace(/\D/g, "");
+  if (digits.length > 11 && digits.startsWith("55")) {
+    digits = digits.slice(2);
+  }
+  return digits.slice(0, 11);
+}
+
+/**
+ * Aplica a máscara visual `(DD) 0 0000-0000` para exibição nos inputs e na página pública.
+ */
+export function formatPhoneMask(input: string): string {
+  const digits = extractPhoneDigits(input);
+  if (!digits) return "";
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 3) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 7) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 3)} ${digits.slice(3)}`;
+  }
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 3)} ${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+}
+
+/**
+ * Extrai apenas o texto do usuário do Instagram (sem `@` e sem URL), limitado a 30 caracteres.
+ */
+export function extractInstagramHandle(input: string): string {
+  let clean = (input || "").trim();
+  clean = clean.replace(/^https?:\/\/(www\.)?instagram\.com\//i, "");
+  clean = clean.split(/[/?#]/)[0] || "";
+  clean = clean.replace(/^@+/, "").replace(/[^a-zA-Z0-9._]/g, "");
+  return clean.slice(0, 30);
+}
+
+/**
+ * Aplica a máscara `@texto` para exibição no input e na página pública.
+ */
+export function formatInstagramMask(input: string): string {
+  if (input === "@") return "@";
+  const handle = extractInstagramHandle(input);
+  return handle ? `@${handle}` : "";
+}
+
+/**
  * Formata um número de telefone/WhatsApp ou link para URL oficial wa.me
  */
 export function formatWhatsAppUrl(
@@ -42,11 +88,10 @@ export function formatWhatsAppUrl(
     return trimmed;
   }
 
-  const digits = trimmed.replace(/\D/g, "");
+  const digits = extractPhoneDigits(trimmed);
   if (!digits) return "";
 
-  const normalized =
-    digits.length <= 11 && !digits.startsWith("55") ? `55${digits}` : digits;
+  const normalized = digits.startsWith("55") ? digits : `55${digits}`;
 
   return `https://wa.me/${normalized}?text=${encodeURIComponent(defaultMessage)}`;
 }
@@ -62,7 +107,8 @@ export function formatInstagramUrl(instagramInput: string): string {
     return trimmed;
   }
 
-  const handle = trimmed.replace(/^@/, "");
+  const handle = extractInstagramHandle(trimmed);
+  if (!handle) return "";
   return `https://instagram.com/${handle}`;
 }
 

@@ -1,6 +1,6 @@
-import { Lock } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Compass, Link2, Lock } from "lucide-react";
+import { useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { GuestGuideTab } from "../../components/public/GuestGuideTab";
 import { LinksTab } from "../../components/public/LinksTab";
 import { PublicHeader } from "../../components/public/PublicHeader";
@@ -14,7 +14,11 @@ import {
 type ActiveTab = "links" | "guide";
 
 export function HomePage() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("links");
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const activeTab: ActiveTab =
+    location.pathname === "/guia-do-hospede" ? "guide" : "links";
 
   const { data: links = [], isLoading: isLoadingLinks } = useActiveLinks();
   const { data: businessInfo } = useBusinessInfo();
@@ -25,23 +29,31 @@ export function HomePage() {
     "Seja muito bem-vindo! Aqui você encontra nossos links rápidos e o guia completo para aproveitar sua estadia.";
 
   useEffect(() => {
-    trackPageView("home");
-  }, []);
+    trackPageView(activeTab === "guide" ? "guia_do_hospede" : "links_contato");
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === "guide" && location.hash === "#como-chegar") {
+      const timer = window.setTimeout(() => {
+        const el = document.getElementById("como-chegar");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+      return () => window.clearTimeout(timer);
+    }
+  }, [activeTab, location.hash]);
 
   const handleNavigateToLocation = () => {
-    setActiveTab("guide");
-    window.setTimeout(() => {
-      const el = document.getElementById("como-chegar");
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    }, 100);
+    navigate("/guia-do-hospede#como-chegar");
   };
 
   const handleTabChange = (tab: ActiveTab) => {
-    setActiveTab(tab);
     if (tab === "guide") {
       trackGuideInteraction("open_guide_tab");
+      navigate("/guia-do-hospede");
+    } else {
+      navigate("/links-contato");
     }
   };
 
@@ -49,45 +61,37 @@ export function HomePage() {
     <div className="min-h-screen bg-brand-bg text-brand-navy flex flex-col justify-between">
       <div className="w-full max-w-lg mx-auto px-4 pb-10">
         {/* Header Principal */}
-        <PublicHeader
-          welcomeMessage={welcomeMessage}
-          contacts={metadata.contacts}
-          links={links}
-          onNavigateToLocation={handleNavigateToLocation}
-        />
+        <PublicHeader welcomeMessage={welcomeMessage} />
 
-        {/* Seletor de 2 Abas em Estilo Pílula */}
+        {/* Seletor de 2 Abas Flat e Responsivo (320px-430px) */}
         <nav
           aria-label="Seções da Central do Hóspede"
-          className="mt-2 mb-6 p-1.5 rounded-full bg-brand-aqua/55 border border-brand-navy/12 grid grid-cols-2 gap-1.5 shadow-inner"
+          className="mt-2 mb-6 p-1 rounded-xl bg-white border border-slate-200 grid grid-cols-2 gap-1 shadow-xs"
         >
           <button
             type="button"
             onClick={() => handleTabChange("links")}
-            className={`py-2.5 px-3 rounded-full text-xs sm:text-sm font-extrabold transition-all duration-200 flex items-center justify-center gap-1.5 ${
+            className={`min-w-0 py-2.5 px-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${
               activeTab === "links"
-                ? "bg-brand-navy text-white shadow-sm"
-                : "text-brand-navy/80 hover:text-brand-navy hover:bg-white/50"
+                ? "bg-brand-navy text-white"
+                : "text-brand-navy/75 hover:text-brand-navy hover:bg-brand-bg"
             }`}
           >
-            <span>📲 Links & Contatos</span>
+            <Link2 className="w-4 h-4 shrink-0" />
+            <span className="truncate">Links & Contatos</span>
           </button>
 
           <button
             type="button"
             onClick={() => handleTabChange("guide")}
-            className={`py-2.5 px-3 rounded-full text-xs sm:text-sm font-extrabold transition-all duration-200 flex items-center justify-center gap-1.5 ${
+            className={`min-w-0 py-2.5 px-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${
               activeTab === "guide"
-                ? "bg-brand-navy text-white shadow-sm"
-                : "text-brand-navy/80 hover:text-brand-navy hover:bg-white/50"
+                ? "bg-brand-navy text-white"
+                : "text-brand-navy/75 hover:text-brand-navy hover:bg-brand-bg"
             }`}
           >
-            <span>🏖️ Guia do Hóspede</span>
-            <span
-              className={`w-2 h-2 rounded-full ${
-                activeTab === "guide" ? "bg-brand-green" : "bg-brand-navy/40"
-              }`}
-            />
+            <Compass className="w-4 h-4 shrink-0" />
+            <span className="truncate">Guia do Hóspede</span>
           </button>
         </nav>
 
@@ -99,6 +103,7 @@ export function HomePage() {
               isLoading={isLoadingLinks}
               contacts={metadata.contacts}
               onSwitchToGuide={() => handleTabChange("guide")}
+              onNavigateToLocation={handleNavigateToLocation}
             />
           ) : (
             <GuestGuideTab metadata={metadata} />
@@ -106,18 +111,17 @@ export function HomePage() {
         </main>
       </div>
 
-      {/* Rodapé acolhedor */}
-      <footer className="w-full max-w-lg mx-auto px-4 py-6 border-t border-brand-navy/10 text-center space-y-2">
-        <p className="text-xs font-semibold text-brand-navy/70">
-          © {new Date().getFullYear()} Pousada Moradas do Gabriel •
-          Hospitalidade Solar & Costeira
+      {/* Rodapé Editorial */}
+      <footer className="w-full max-w-lg mx-auto px-4 py-6 border-t border-slate-200 text-center space-y-2">
+        <p className="text-xs font-medium text-brand-navy/65">
+          © {new Date().getFullYear()} Pousada Moradas do Gabriel
         </p>
         <div>
           <Link
             to="/admin"
-            className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-brand-navy/45 hover:text-brand-navy transition-colors"
+            className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-brand-navy/50 hover:text-brand-navy transition-colors"
           >
-            <Lock className="w-3 h-3" />
+            <Lock className="w-3 h-3 shrink-0" />
             <span>Painel da Pousada</span>
           </Link>
         </div>
