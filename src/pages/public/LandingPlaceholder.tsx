@@ -1,8 +1,7 @@
 import {
-  ArrowLeft,
   BedDouble,
   Coffee,
-  Compass,
+  Link2,
   MapPin,
   MessageCircle,
   Sun,
@@ -11,7 +10,6 @@ import {
 } from "lucide-react";
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import logoMoradas from "../../assets/logoMoradasdoGabriel.png";
 import { useBusinessInfo } from "../../hooks/usePortalData";
 import {
   DEFAULT_BUSINESS_METADATA,
@@ -25,7 +23,7 @@ export function LandingPlaceholder() {
   const metadata = businessInfo?.metadata ?? DEFAULT_BUSINESS_METADATA;
 
   useEffect(() => {
-    trackPageView("site_placeholder");
+    trackPageView("landing_page");
   }, []);
 
   const whatsappUrl =
@@ -66,24 +64,24 @@ export function LandingPlaceholder() {
       <div className="w-full max-w-3xl mx-auto px-4 pt-6 pb-12">
         {/* Barra Superior de Navegação Responsiva */}
         <div className="flex flex-wrap items-center justify-between gap-2.5 mb-6">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-brand-navy text-xs font-semibold">
+            Novo Site em Breve
+          </span>
+
           <Link
             to="/links-contato"
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-brand-navy text-xs sm:text-sm font-semibold shadow-xs hover:bg-slate-50 transition-colors"
           >
-            <ArrowLeft className="w-4 h-4 shrink-0" />
-            <span>Voltar para a Central do Hóspede</span>
+            <Link2 className="w-4 h-4 shrink-0" />
+            <span>Links & Contatos</span>
           </Link>
-
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-brand-navy text-xs font-semibold">
-            Novo Site em Breve
-          </span>
         </div>
 
         {/* Card Hero Principal Flat */}
         <section className="rounded-2xl bg-white border border-slate-200 p-6 sm:p-10 shadow-xs text-center">
-          <div className="mx-auto w-32 h-32 sm:w-40 sm:h-40 rounded-2xl bg-white border border-slate-200 p-3 flex items-center justify-center">
+          <div className="mx-auto w-36 h-36 sm:w-44 sm:h-44 rounded-2xl bg-white border border-slate-200 p-2 flex items-center justify-center">
             <img
-              src={logoMoradas}
+              src="/logoMoradasdoGabriel.svg"
               alt="Logo Pousada Moradas do Gabriel"
               className="w-full h-full object-contain"
             />
@@ -101,9 +99,9 @@ export function LandingPlaceholder() {
           <p className="mt-3 text-sm sm:text-base text-brand-navy/75 max-w-xl mx-auto leading-relaxed break-words">
             Em breve você poderá explorar todas as nossas acomodações, galeria
             de fotos e experiências diretamente por aqui. Enquanto isso, nossa
-            equipe está pronta para atender você e a nossa{" "}
+            equipe está pronta para atender você e a nossa página de{" "}
             <strong className="font-semibold text-brand-navy">
-              Central do Hóspede
+              Links & Contatos
             </strong>{" "}
             já está 100% disponível.
           </p>
@@ -122,11 +120,11 @@ export function LandingPlaceholder() {
             </a>
 
             <Link
-              to="/guia-do-hospede"
+              to="/links-contato"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-brand-navy font-semibold text-xs sm:text-sm border border-slate-200 transition-colors"
             >
-              <Compass className="w-4 h-4 shrink-0" />
-              <span>Acessar Guia do Hóspede</span>
+              <Link2 className="w-4 h-4 shrink-0" />
+              <span>Acessar Links & Contatos</span>
             </Link>
           </div>
         </section>
@@ -170,12 +168,14 @@ export function LandingPlaceholder() {
                 </p>
               </div>
             </div>
-            <Link
-              to="/guia-do-hospede#como-chegar"
+            <a
+              href={metadata.location.maps_url || "https://maps.google.com"}
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-xs font-semibold text-brand-navy underline underline-offset-4 hover:text-brand-navy-light shrink-0"
             >
-              Ver mapa na Central do Hóspede →
-            </Link>
+              Ver localização no Google Maps →
+            </a>
           </div>
         )}
       </div>

@@ -160,6 +160,10 @@ export function normalizeBusinessMetadata(
           description:
             typeof item.description === "string" ? item.description : "",
           link: typeof item.link === "string" ? item.link : "",
+          embed_url:
+            typeof item.embed_url === "string"
+              ? extractEmbedUrl(item.embed_url)
+              : "",
         }))
         .filter((item) => item.name.trim() !== "")
     : DEFAULT_BUSINESS_METADATA.places_tips;
@@ -323,6 +327,7 @@ export async function saveBusinessInfo(
         category: p.category.trim() || "Gastronomia",
         description: p.description.trim(),
         link: p.link.trim(),
+        embed_url: extractEmbedUrl(p.embed_url ?? ""),
       }))
       .filter((p) => p.name !== ""),
     contacts: {

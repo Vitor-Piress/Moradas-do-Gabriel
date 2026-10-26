@@ -275,6 +275,7 @@ export interface PlaceTip {
   category: PlaceCategory
   description: string
   link: string
+  embed_url?: string
 }
 
 export interface ContactsMetadata {

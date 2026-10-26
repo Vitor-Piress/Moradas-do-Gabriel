@@ -25,16 +25,14 @@ interface LinksTabProps {
   links: LinkRow[];
   isLoading: boolean;
   contacts: ContactsMetadata;
-  onSwitchToGuide: () => void;
-  onNavigateToLocation: () => void;
+  mapsUrl?: string;
 }
 
 export function LinksTab({
   links,
   isLoading,
   contacts,
-  onSwitchToGuide,
-  onNavigateToLocation,
+  mapsUrl,
 }: LinksTabProps) {
   const handleExternalLinkClick = (link: LinkRow) => {
     trackLinkClick(link.id, link.title);
@@ -61,8 +59,15 @@ export function LinksTab({
 
   const whatsappHref =
     formatWhatsAppUrl(contacts.whatsapp) || "https://wa.me/";
+  const guestGuideWhatsappHref =
+    formatWhatsAppUrl(
+      contacts.whatsapp,
+      "Quero receber a guia do hóspede",
+    ) ||
+    `https://wa.me/?text=${encodeURIComponent("Quero receber a guia do hóspede")}`;
   const instagramHref =
     formatInstagramUrl(contacts.instagram) || "https://instagram.com";
+  const locationHref = mapsUrl || "https://maps.google.com";
 
   const maskedWhatsapp = formatPhoneMask(contacts.whatsapp);
   const maskedPhone = formatPhoneMask(contacts.phone);
@@ -78,14 +83,17 @@ export function LinksTab({
 
   const handleLocationClick = () => {
     trackGuideInteraction("quick_location");
-    onNavigateToLocation();
+  };
+
+  const handleRequestGuideClick = () => {
+    trackLinkClick(null, "request_guest_guide_whatsapp");
   };
 
   return (
     <div className="space-y-2.5 animate-fade-in">
-      {/* Botão Especial: Conhecer a Pousada (/site) */}
+      {/* Botão Especial: Conhecer a Pousada (/) */}
       <Link
-        to="/site"
+        to="/"
         onClick={handleSiteClick}
         className="group flex items-center justify-between gap-3 w-full p-4 rounded-2xl bg-brand-navy text-white border border-brand-navy hover:bg-brand-navy-light transition-colors shadow-xs"
       >
@@ -219,8 +227,10 @@ export function LinksTab({
           )}
 
           {/* Card Principal: Como Chegar */}
-          <button
-            type="button"
+          <a
+            href={locationHref}
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={handleLocationClick}
             className="group flex items-center justify-between gap-3 w-full p-4 rounded-2xl bg-white border border-slate-200 text-brand-navy shadow-xs hover:border-brand-navy/35 hover:bg-slate-50 transition-colors text-left"
           >
@@ -232,16 +242,18 @@ export function LinksTab({
                 Como Chegar
               </span>
             </div>
-            <ArrowRight className="w-4 h-4 text-brand-navy/45 group-hover:text-brand-navy group-hover:translate-x-0.5 transition-all shrink-0" />
-          </button>
+            <ExternalLink className="w-4 h-4 text-brand-navy/45 group-hover:text-brand-navy group-hover:translate-x-0.5 transition-all shrink-0" />
+          </a>
         </div>
       )}
 
-      {/* Card convite para o Guia do Hóspede */}
+      {/* Card para solicitar o Guia do Hóspede via WhatsApp */}
       <div className="pt-1">
-        <button
-          type="button"
-          onClick={onSwitchToGuide}
+        <a
+          href={guestGuideWhatsappHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleRequestGuideClick}
           className="w-full p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 hover:border-brand-navy/30 text-brand-navy flex items-center justify-between gap-3 transition-colors text-left shadow-xs group"
         >
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -253,12 +265,12 @@ export function LinksTab({
                 Já está hospedado conosco?
               </p>
               <p className="text-sm font-bold text-brand-navy break-words leading-snug">
-                Acesse as redes Wi-Fi, mapas e dicas locais
+                Solicite o Guia do Hóspede pelo WhatsApp
               </p>
             </div>
           </div>
-          <ArrowRight className="w-4 h-4 text-brand-navy/60 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-        </button>
+          <ExternalLink className="w-4 h-4 text-brand-navy/60 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+        </a>
       </div>
 
       {/* Telefone direto em botão discreto no final se preenchido */}
