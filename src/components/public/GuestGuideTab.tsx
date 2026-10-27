@@ -7,7 +7,6 @@ import {
   Eye,
   EyeOff,
   MapPin,
-  Navigation,
   ShoppingBag,
   Sparkles,
   Sun,
@@ -23,6 +22,7 @@ import type {
 } from "../../@types/database.types";
 import { trackGuideInteraction } from "../../services";
 import { extractEmbedUrl } from "../../utils/embedUrl";
+import { WazeIcon } from "../../utils/iconMapper";
 
 interface GuestGuideTabProps {
   metadata: BusinessInfoMetadata;
@@ -221,7 +221,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
             onClick={handleOpenWaze}
             className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-white hover:bg-slate-50 text-brand-navy border border-slate-200 font-semibold text-xs sm:text-sm transition-colors text-center"
           >
-            <Navigation className="w-4 h-4 text-brand-navy shrink-0" />
+            <WazeIcon className="w-4 h-4 text-brand-navy shrink-0" />
             <span>Ir com Waze</span>
           </a>
         </div>
@@ -446,6 +446,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
           <div className="grid grid-cols-1 gap-3">
             {filteredPlaces.map((place, idx) => {
               const CategoryIcon = getCategoryIcon(place.category);
+              const placeEmbedUrl = extractEmbedUrl(place.embed_url || "");
 
               return (
                 <article
@@ -468,6 +469,19 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
                       </p>
                     )}
                   </div>
+
+                  {placeEmbedUrl && (
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                      <iframe
+                        src={placeEmbedUrl}
+                        title={`Mapa de Localização - ${place.name}`}
+                        className="w-full h-44 sm:h-52 border-0"
+                        loading="lazy"
+                        allowFullScreen
+                        referrerPolicy="no-referrer-when-downgrade"
+                      />
+                    </div>
+                  )}
 
                   {place.link && (
                     <div className="pt-1">

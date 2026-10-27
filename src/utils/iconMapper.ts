@@ -93,6 +93,45 @@ export function InstagramIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/**
+ * Ícone SVG Oficial do Waze
+ */
+export function WazeIcon(props: SVGProps<SVGSVGElement>) {
+  return createElement(
+    "svg",
+    {
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.9,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": "true",
+      ...props,
+    },
+    createElement("path", {
+      d: "M10.5 17h5a6.5 6.5 0 1 0-11.9-3.6C3.2 15.2 2 16 2 16c1.5 1 3.1 1 4.5 1",
+    }),
+    createElement("circle", { cx: "8", cy: "18.5", r: "2" }),
+    createElement("circle", { cx: "16.5", cy: "18.5", r: "2" }),
+    createElement("circle", {
+      cx: "10.5",
+      cy: "9.5",
+      r: "0.8",
+      fill: "currentColor",
+    }),
+    createElement("circle", {
+      cx: "15",
+      cy: "9.5",
+      r: "0.8",
+      fill: "currentColor",
+    }),
+    createElement("path", {
+      d: "M10.5 12.5c.8 1 2.9 1 3.8 0",
+    }),
+  );
+}
+
 export interface IconOption {
   value: string;
   label: string;
@@ -104,6 +143,7 @@ export const AVAILABLE_LINK_ICONS: IconOption[] = [
   { value: "calendar", label: "Reservas / Calendário", icon: Calendar },
   { value: "bed", label: "Acomodações / Suítes", icon: BedDouble },
   { value: "instagram", label: "Instagram", icon: InstagramIcon },
+  { value: "waze", label: "Waze / Navegação", icon: WazeIcon },
   { value: "map-pin", label: "Localização / Mapa", icon: MapPin },
   { value: "globe", label: "Site Oficial / Web", icon: Globe },
   { value: "phone", label: "Telefone", icon: Phone },
@@ -131,6 +171,7 @@ const ICON_MAP: Record<string, PortalIcon> = {
   bed: BedDouble,
   "bed-double": BedDouble,
   instagram: InstagramIcon,
+  waze: WazeIcon,
   "map-pin": MapPin,
   mappin: MapPin,
   map: MapPin,

@@ -120,6 +120,7 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
     useState<string>("Gastronomia");
   const [newPlaceDescription, setNewPlaceDescription] = useState("");
   const [newPlaceLink, setNewPlaceLink] = useState("");
+  const [newPlaceEmbedUrl, setNewPlaceEmbedUrl] = useState("");
 
   // Feedback de salvamento
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -184,12 +185,14 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
       category: newPlaceCategory || "Gastronomia",
       description: newPlaceDescription.trim(),
       link: newPlaceLink.trim(),
+      embed_url: extractEmbedUrl(newPlaceEmbedUrl),
     };
     setPlacesTips((prev) => [...prev, item]);
     setNewPlaceName("");
     setNewPlaceCategory("Gastronomia");
     setNewPlaceDescription("");
     setNewPlaceLink("");
+    setNewPlaceEmbedUrl("");
   };
 
   const handleUpdatePlace = (
@@ -197,9 +200,13 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
     field: keyof PlaceTip,
     value: string,
   ) => {
+    const finalValue =
+      field === "embed_url" && containsIframeTag(value)
+        ? extractEmbedUrl(value)
+        : value;
     setPlacesTips((prev) =>
       prev.map((place, i) =>
-        i === index ? { ...place, [field]: value } : place,
+        i === index ? { ...place, [field]: finalValue } : place,
       ),
     );
   };
@@ -255,6 +262,7 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
               category: p.category.trim() || "Gastronomia",
               description: p.description.trim(),
               link: p.link.trim(),
+              embed_url: extractEmbedUrl(p.embed_url ?? ""),
             }))
             .filter((p) => p.name !== ""),
           contacts: {
@@ -750,24 +758,50 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
               placeholder="Descrição curta (ex: Ótima moqueca à beira-mar)"
               className="w-full min-w-0 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-sm text-brand-navy focus:outline-none focus:border-brand-navy"
             />
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                value={newPlaceLink}
-                onChange={(e) => setNewPlaceLink(e.target.value)}
-                placeholder="Link do Maps ou Instagram"
-                className="w-full sm:flex-1 min-w-0 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-sm text-brand-navy focus:outline-none focus:border-brand-navy"
-              />
-              <button
-                type="button"
-                onClick={handleAddPlace}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-brand-navy text-white text-xs font-semibold hover:bg-brand-navy-light transition-colors shrink-0"
-              >
-                <Plus className="w-4 h-4 shrink-0" />
-                <span>Incluir</span>
-              </button>
-            </div>
+            <input
+              type="text"
+              value={newPlaceLink}
+              onChange={(e) => setNewPlaceLink(e.target.value)}
+              placeholder="Link do Maps ou Instagram"
+              className="w-full min-w-0 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-sm text-brand-navy focus:outline-none focus:border-brand-navy"
+            />
           </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              value={newPlaceEmbedUrl}
+              onChange={(e) =>
+                setNewPlaceEmbedUrl(
+                  containsIframeTag(e.target.value)
+                    ? extractEmbedUrl(e.target.value)
+                    : e.target.value,
+                )
+              }
+              placeholder='Google Maps Embed opcional (URL ou <iframe src="..." />)'
+              className="w-full sm:flex-1 min-w-0 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-sm text-brand-navy focus:outline-none focus:border-brand-navy"
+            />
+            <button
+              type="button"
+              onClick={handleAddPlace}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-brand-navy text-white text-xs font-semibold hover:bg-brand-navy-light transition-colors shrink-0"
+            >
+              <Plus className="w-4 h-4 shrink-0" />
+              <span>Incluir</span>
+            </button>
+          </div>
+
+          {newPlaceEmbedUrl && (
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <iframe
+                src={extractEmbedUrl(newPlaceEmbedUrl)}
+                title="Preview do Mapa da Nova Dica"
+                className="w-full h-40 border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          )}
         </div>
 
         {/* Lista Editável de Lugares */}
@@ -835,6 +869,30 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
                   placeholder="Link (Google Maps / Instagram)"
                   className="w-full min-w-0 px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm text-brand-navy focus:outline-none focus:border-brand-navy"
                 />
+              </div>
+
+              <div className="min-w-0 space-y-2">
+                <input
+                  type="text"
+                  value={place.embed_url ?? ""}
+                  onChange={(e) =>
+                    handleUpdatePlace(idx, "embed_url", e.target.value)
+                  }
+                  placeholder='Google Maps Embed opcional (cole a URL ou o código <iframe src="..." />)'
+                  className="w-full min-w-0 px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm text-brand-navy focus:outline-none focus:border-brand-navy"
+                />
+
+                {place.embed_url && (
+                  <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                    <iframe
+                      src={extractEmbedUrl(place.embed_url)}
+                      title={`Mapa - ${place.name}`}
+                      className="w-full h-40 border-0"
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           ))}
