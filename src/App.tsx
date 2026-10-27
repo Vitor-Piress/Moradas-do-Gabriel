@@ -3,8 +3,9 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, ProtectedRoute } from "./contexts/AuthContext";
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { LoginPage } from "./pages/auth/LoginPage";
+import { AccommodationDetailPage } from "./pages/public/AccommodationDetailPage";
 import { HomePage } from "./pages/public/HomePage";
-import { LandingPlaceholder } from "./pages/public/LandingPlaceholder";
+import { LandingPage } from "./pages/public/LandingPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,7 +22,11 @@ export function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<LandingPlaceholder />} />
+            <Route path="/" element={<LandingPage />} />
+            <Route
+              path="/acomodacoes/:slug"
+              element={<AccommodationDetailPage />}
+            />
             <Route path="/links-contato" element={<HomePage />} />
             <Route path="/guia-do-hospede" element={<HomePage />} />
             <Route path="/site" element={<Navigate to="/" replace />} />

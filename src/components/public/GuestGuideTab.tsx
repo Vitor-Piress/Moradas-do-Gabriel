@@ -1,5 +1,7 @@
 import {
   Check,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   Compass,
   Copy,
@@ -7,14 +9,17 @@ import {
   Eye,
   EyeOff,
   MapPin,
+  Maximize2,
   ShoppingBag,
   Sparkles,
   Sun,
   Umbrella,
   Utensils,
   Wifi,
+  X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type {
   BusinessInfoMetadata,
   PlaceTip,
@@ -62,6 +67,81 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
     Record<string, boolean>
   >({});
   const [selectedCategory, setSelectedCategory] = useState<string>("Todos");
+  const [placeImageIndices, setPlaceImageIndices] = useState<
+    Record<string, number>
+  >({});
+  const [lightboxState, setLightboxState] = useState<{
+    placeName: string;
+    category: string;
+    images: string[];
+    activeIndex: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!lightboxState) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setLightboxState(null);
+      } else if (e.key === "ArrowLeft" && lightboxState.images.length > 1) {
+        setLightboxState((prev) =>
+          prev
+            ? {
+                ...prev,
+                activeIndex:
+                  (prev.activeIndex - 1 + prev.images.length) %
+                  prev.images.length,
+              }
+            : null,
+        );
+      } else if (e.key === "ArrowRight" && lightboxState.images.length > 1) {
+        setLightboxState((prev) =>
+          prev
+            ? {
+                ...prev,
+                activeIndex: (prev.activeIndex + 1) % prev.images.length,
+              }
+            : null,
+        );
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [lightboxState]);
+
+  const handleOpenLightbox = (
+    placeName: string,
+    category: string,
+    images: string[],
+    startIndex: number,
+  ) => {
+    setLightboxState({
+      placeName,
+      category,
+      images,
+      activeIndex: startIndex,
+    });
+    trackGuideInteraction(`maximize_place_photos:${placeName}`);
+  };
+
+  const handleCyclePlaceImage = (
+    placeKey: string,
+    totalImages: number,
+    delta: number,
+  ) => {
+    setPlaceImageIndices((prev) => {
+      const current = prev[placeKey] ?? 0;
+      const next = (current + delta + totalImages) % totalImages;
+      return { ...prev, [placeKey]: next };
+    });
+  };
 
   const togglePasswordVisibility = (cardKey: string) => {
     setVisiblePasswords((prev) => ({
@@ -447,10 +527,23 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
             {filteredPlaces.map((place, idx) => {
               const CategoryIcon = getCategoryIcon(place.category);
               const placeEmbedUrl = extractEmbedUrl(place.embed_url || "");
+              const placeImages =
+                Array.isArray(place.images) && place.images.length > 0
+                  ? place.images.filter(Boolean)
+                  : place.image_url?.trim()
+                    ? [place.image_url.trim()]
+                    : [];
+              const placeKey = `${place.name}-${idx}`;
+              const activeImgIdx =
+                placeImages.length > 0
+                  ? (placeImageIndices[placeKey] ?? 0) % placeImages.length
+                  : 0;
+              const hasBothMedia =
+                placeImages.length > 0 && Boolean(placeEmbedUrl);
 
               return (
                 <article
-                  key={`${place.name}-${idx}`}
+                  key={placeKey}
                   className="rounded-xl bg-brand-bg border border-slate-200 p-4 flex flex-col justify-between gap-3"
                 >
                   <div className="space-y-1.5 min-w-0">
@@ -470,16 +563,101 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
                     )}
                   </div>
 
-                  {placeEmbedUrl && (
-                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                      <iframe
-                        src={placeEmbedUrl}
-                        title={`Mapa de Localização - ${place.name}`}
-                        className="w-full h-44 sm:h-52 border-0"
-                        loading="lazy"
-                        allowFullScreen
-                        referrerPolicy="no-referrer-when-downgrade"
-                      />
+                  {/* Imagens do Local + Mapa Incorporado (Lado a lado quando ambos existirem) */}
+                  {(placeImages.length > 0 || placeEmbedUrl) && (
+                    <div
+                      className={`grid grid-cols-1 ${
+                        hasBothMedia ? "sm:grid-cols-2" : ""
+                      } gap-3`}
+                    >
+                      {placeImages.length > 0 && (
+                        <div className="relative group overflow-hidden rounded-xl border border-slate-200 bg-white h-48 sm:h-52">
+                          <img
+                            src={placeImages[activeImgIdx]}
+                            alt={`${place.name} - Foto ${activeImgIdx + 1}`}
+                            onClick={() =>
+                              handleOpenLightbox(
+                                place.name,
+                                place.category,
+                                placeImages,
+                                activeImgIdx,
+                              )
+                            }
+                            className="w-full h-full object-cover cursor-zoom-in transition-transform duration-300 group-hover:scale-[1.02]"
+                            loading="lazy"
+                          />
+
+                          {/* Botão de Maximizar Fotos */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleOpenLightbox(
+                                place.name,
+                                place.category,
+                                placeImages,
+                                activeImgIdx,
+                              )
+                            }
+                            aria-label={`Ampliar fotos de ${place.name}`}
+                            title="Ampliar fotos"
+                            className="absolute top-2 right-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/95 hover:bg-white border border-slate-200 text-brand-navy text-[11px] font-semibold shadow-xs transition-colors"
+                          >
+                            <Maximize2 className="w-3.5 h-3.5 shrink-0" />
+                            <span>Ampliar</span>
+                          </button>
+
+                          {placeImages.length > 1 && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCyclePlaceImage(
+                                    placeKey,
+                                    placeImages.length,
+                                    -1,
+                                  );
+                                }}
+                                aria-label="Foto anterior"
+                                className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-white/90 border border-slate-200 text-brand-navy flex items-center justify-center shadow-xs hover:bg-white"
+                              >
+                                <ChevronLeft className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCyclePlaceImage(
+                                    placeKey,
+                                    placeImages.length,
+                                    1,
+                                  );
+                                }}
+                                aria-label="Próxima foto"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-white/90 border border-slate-200 text-brand-navy flex items-center justify-center shadow-xs hover:bg-white"
+                              >
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                              <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-brand-navy/85 text-white text-[10px] font-semibold">
+                                {activeImgIdx + 1}/{placeImages.length}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {placeEmbedUrl && (
+                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white h-48 sm:h-52">
+                          <iframe
+                            src={placeEmbedUrl}
+                            title={`Mapa de Localização - ${place.name}`}
+                            className="w-full h-full border-0"
+                            loading="lazy"
+                            allowFullScreen
+                            referrerPolicy="no-referrer-when-downgrade"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -510,6 +688,135 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
           </div>
         )}
       </section>
+
+      {/* Modal Lightbox (Portal no document.body para ocupar a tela inteira sem interferência de transform) */}
+      {lightboxState &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Galeria de fotos - ${lightboxState.placeName}`}
+            onClick={() => setLightboxState(null)}
+            className="fixed inset-0 z-[100] bg-brand-navy/80 backdrop-blur-xs p-3 sm:p-6 flex items-center justify-center"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-3xl max-h-[92vh] rounded-3xl bg-white border border-slate-200 p-3.5 sm:p-5 shadow-2xl flex flex-col gap-3"
+            >
+              {/* Cabeçalho do Modal */}
+              <div className="flex items-center justify-between gap-3 pb-2.5 border-b border-slate-200 shrink-0">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-sm sm:text-base text-brand-navy truncate">
+                      {lightboxState.placeName}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-md bg-brand-bg border border-slate-200 text-[11px] font-semibold text-brand-navy">
+                      {lightboxState.category}
+                    </span>
+                  </div>
+                  <p className="text-xs text-brand-navy/65">
+                    Foto {lightboxState.activeIndex + 1} de{" "}
+                    {lightboxState.images.length}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setLightboxState(null)}
+                  aria-label="Fechar visualização ampliada"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-bg hover:bg-slate-100 border border-slate-200 text-brand-navy text-xs font-semibold transition-colors shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Fechar</span>
+                </button>
+              </div>
+
+              {/* Imagem Principal Maximizada + Controles do Carrossel */}
+              <div className="relative flex-1 min-h-0 flex items-center justify-center rounded-2xl overflow-hidden bg-brand-bg border border-slate-200">
+                <img
+                  src={lightboxState.images[lightboxState.activeIndex]}
+                  alt={`${lightboxState.placeName} - Foto ${lightboxState.activeIndex + 1}`}
+                  className="max-h-[60vh] sm:max-h-[66vh] w-full object-contain"
+                />
+
+                {lightboxState.images.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setLightboxState((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                activeIndex:
+                                  (prev.activeIndex - 1 + prev.images.length) %
+                                  prev.images.length,
+                              }
+                            : null,
+                        )
+                      }
+                      aria-label="Foto anterior"
+                      className="absolute left-2.5 sm:left-3.5 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/95 hover:bg-white border border-slate-200 text-brand-navy flex items-center justify-center shadow-md transition-colors"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setLightboxState((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                activeIndex:
+                                  (prev.activeIndex + 1) % prev.images.length,
+                              }
+                            : null,
+                        )
+                      }
+                      aria-label="Próxima foto"
+                      className="absolute right-2.5 sm:right-3.5 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/95 hover:bg-white border border-slate-200 text-brand-navy flex items-center justify-center shadow-md transition-colors"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Miniaturas Inferiores */}
+              {lightboxState.images.length > 1 && (
+                <div className="flex items-center justify-center gap-2 overflow-x-auto pt-1 shrink-0">
+                  {lightboxState.images.map((imgUrl, idx) => {
+                    const isCurrent = idx === lightboxState.activeIndex;
+                    return (
+                      <button
+                        key={`${imgUrl}-${idx}`}
+                        type="button"
+                        onClick={() =>
+                          setLightboxState((prev) =>
+                            prev ? { ...prev, activeIndex: idx } : null,
+                          )
+                        }
+                        className={`w-16 h-12 sm:w-20 sm:h-14 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${
+                          isCurrent
+                            ? "border-brand-navy shadow-xs"
+                            : "border-slate-200 opacity-60 hover:opacity-100"
+                        }`}
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`Miniatura ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

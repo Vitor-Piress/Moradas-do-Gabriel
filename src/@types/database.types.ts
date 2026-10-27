@@ -14,6 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
+      accommodations: {
+        Row: {
+          beds: Json
+          cover_image: string
+          created_at: string
+          extra_amenities: Json
+          full_description: string
+          gallery: Json
+          has_ac: boolean
+          has_balcony: boolean
+          has_bed_bath_linen: boolean
+          has_kitchen: boolean
+          has_kitchen_utensils: boolean
+          has_private_bathroom: boolean
+          has_tv: boolean
+          has_wifi: boolean
+          id: string
+          is_active: boolean
+          is_pet_friendly: boolean
+          max_guests: number
+          position: number
+          short_description: string
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          beds?: Json
+          cover_image?: string
+          created_at?: string
+          extra_amenities?: Json
+          full_description?: string
+          gallery?: Json
+          has_ac?: boolean
+          has_balcony?: boolean
+          has_bed_bath_linen?: boolean
+          has_kitchen?: boolean
+          has_kitchen_utensils?: boolean
+          has_private_bathroom?: boolean
+          has_tv?: boolean
+          has_wifi?: boolean
+          id?: string
+          is_active?: boolean
+          is_pet_friendly?: boolean
+          max_guests?: number
+          position?: number
+          short_description?: string
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          beds?: Json
+          cover_image?: string
+          created_at?: string
+          extra_amenities?: Json
+          full_description?: string
+          gallery?: Json
+          has_ac?: boolean
+          has_balcony?: boolean
+          has_bed_bath_linen?: boolean
+          has_kitchen?: boolean
+          has_kitchen_utensils?: boolean
+          has_private_bathroom?: boolean
+          has_tv?: boolean
+          has_wifi?: boolean
+          id?: string
+          is_active?: boolean
+          is_pet_friendly?: boolean
+          max_guests?: number
+          position?: number
+          short_description?: string
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       analytics_events: {
         Row: {
           created_at: string
@@ -276,12 +354,52 @@ export interface PlaceTip {
   description: string
   link: string
   embed_url?: string
+  image_url?: string
+  images?: string[]
 }
 
 export interface ContactsMetadata {
   whatsapp: string
   phone: string
   instagram: string
+}
+
+export interface HeroSlideItem {
+  id: string
+  topic: "Acomodações" | "Destinos" | "Praias" | "Sobre a Pousada" | string
+  title: string
+  subtitle: string
+  image_url: string
+  cta_label: string
+  cta_href: string
+}
+
+export interface AboutHighlightItem {
+  title: string
+  description: string
+  badge: string
+}
+
+export interface LandingAboutMetadata {
+  badge: string
+  title: string
+  description: string
+  secondary_description: string
+  image_url: string
+  highlights: AboutHighlightItem[]
+}
+
+export interface LandingFooterMetadata {
+  company_name: string
+  cnpj: string
+  check_in_out_info: string
+  copyright_note: string
+}
+
+export interface LandingPageMetadata {
+  hero_slides: HeroSlideItem[]
+  about: LandingAboutMetadata
+  footer: LandingFooterMetadata
 }
 
 export interface BusinessInfoMetadata {
@@ -291,6 +409,23 @@ export interface BusinessInfoMetadata {
   rules: string[]
   places_tips: PlaceTip[]
   contacts: ContactsMetadata
+  landing?: LandingPageMetadata
+}
+
+export interface BedConfigItem {
+  count: number
+  type: string
+}
+
+export type AccommodationRow = Tables<"accommodations">
+export type AccommodationInsert = TablesInsert<"accommodations">
+export type AccommodationUpdate = TablesUpdate<"accommodations">
+
+export interface TypedAccommodation
+  extends Omit<AccommodationRow, "beds" | "gallery" | "extra_amenities"> {
+  beds: BedConfigItem[]
+  gallery: string[]
+  extra_amenities: string[]
 }
 
 export type LinkRow = Tables<"links">
