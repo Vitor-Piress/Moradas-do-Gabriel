@@ -157,4 +157,4 @@ npm run preview
 ---
 
 ## 📄 Licença
-Projeto proprietário desenvolvido para a **Pousada Moradas do Gabriel**. Todos os direitos reservados.
+Projeto proprietário desenvolvido para a **Pousada Moradas do Gabriel**. Todos os direitos reservados — consulte o arquivo [`LICENSE`](./LICENSE) para mais detalhes.
