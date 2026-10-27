@@ -27,7 +27,7 @@ export async function trackPageView(eventTarget = "home"): Promise<void> {
 
     const { error } = await supabase.from("analytics_events").insert({
       event_type: "page_view",
-      event_target: eventTarget,
+      event_target: eventTarget.slice(0, 200),
       link_id: null,
     });
 
@@ -53,7 +53,7 @@ export async function trackLinkClick(
     const { error } = await supabase.from("analytics_events").insert({
       event_type: "link_click",
       link_id: linkId,
-      event_target: eventTarget ?? null,
+      event_target: eventTarget ? eventTarget.slice(0, 200) : null,
     });
 
     if (error) {
@@ -77,7 +77,7 @@ export async function trackGuideInteraction(
   try {
     const { error } = await supabase.from("analytics_events").insert({
       event_type: "guide_interaction",
-      event_target: eventTarget,
+      event_target: eventTarget.slice(0, 200),
       link_id: null,
     });
 

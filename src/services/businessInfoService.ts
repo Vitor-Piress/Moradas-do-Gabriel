@@ -13,6 +13,7 @@ import {
   extractEmbedUrl,
   extractInstagramHandle,
   extractPhoneDigits,
+  sanitizeHttpUrl,
 } from "../utils/embedUrl";
 
 export const DEFAULT_BUSINESS_METADATA: BusinessInfoMetadata = {
@@ -254,11 +255,13 @@ export function normalizeBusinessMetadata(
           const rawImages = Array.isArray(item.images)
             ? item.images
                 .filter((img): img is string => typeof img === "string")
-                .map((img) => img.trim())
+                .map((img) => sanitizeHttpUrl(img, { allowRelative: false }))
                 .filter(Boolean)
             : [];
           const singleImage =
-            typeof item.image_url === "string" ? item.image_url.trim() : "";
+            typeof item.image_url === "string"
+              ? sanitizeHttpUrl(item.image_url, { allowRelative: false })
+              : "";
           const images =
             rawImages.length > 0
               ? rawImages
@@ -274,7 +277,10 @@ export function normalizeBusinessMetadata(
                 : "Gastronomia",
             description:
               typeof item.description === "string" ? item.description : "",
-            link: typeof item.link === "string" ? item.link : "",
+            link:
+              typeof item.link === "string"
+                ? sanitizeHttpUrl(item.link, { allowRelative: false })
+                : "",
             embed_url:
               typeof item.embed_url === "string"
                 ? extractEmbedUrl(item.embed_url)
@@ -301,14 +307,17 @@ export function normalizeBusinessMetadata(
                 : "Acomodações",
             title: typeof item.title === "string" ? item.title : "",
             subtitle: typeof item.subtitle === "string" ? item.subtitle : "",
-            image_url: typeof item.image_url === "string" ? item.image_url : "",
+            image_url:
+              typeof item.image_url === "string"
+                ? sanitizeHttpUrl(item.image_url, { allowRelative: false })
+                : "",
             cta_label:
               typeof item.cta_label === "string" && item.cta_label.trim()
                 ? item.cta_label.trim()
                 : "Saiba Mais",
             cta_href:
               typeof item.cta_href === "string" && item.cta_href.trim()
-                ? item.cta_href.trim()
+                ? sanitizeHttpUrl(item.cta_href.trim()) || "#acomodacoes"
                 : "#acomodacoes",
           }))
           .filter((item) => item.title.trim() !== "")
@@ -348,7 +357,8 @@ export function normalizeBusinessMetadata(
           : DEFAULT_LANDING_METADATA.about.secondary_description,
       image_url:
         typeof rawAbout.image_url === "string" && rawAbout.image_url.trim()
-          ? rawAbout.image_url
+          ? sanitizeHttpUrl(rawAbout.image_url, { allowRelative: false }) ||
+            DEFAULT_LANDING_METADATA.about.image_url
           : DEFAULT_LANDING_METADATA.about.image_url,
       highlights: aboutHighlights,
     },
@@ -384,11 +394,11 @@ export function normalizeBusinessMetadata(
           : DEFAULT_BUSINESS_METADATA.location.address,
       maps_url:
         typeof rawLocation.maps_url === "string"
-          ? rawLocation.maps_url
+          ? sanitizeHttpUrl(rawLocation.maps_url, { allowRelative: false })
           : DEFAULT_BUSINESS_METADATA.location.maps_url,
       waze_url:
         typeof rawLocation.waze_url === "string"
-          ? rawLocation.waze_url
+          ? sanitizeHttpUrl(rawLocation.waze_url, { allowRelative: false })
           : DEFAULT_BUSINESS_METADATA.location.waze_url,
       embed_url:
         typeof rawLocation.embed_url === "string"
@@ -519,8 +529,12 @@ export async function saveBusinessInfo(
     },
     location: {
       address: input.metadata.location.address.trim(),
-      maps_url: input.metadata.location.maps_url.trim(),
-      waze_url: input.metadata.location.waze_url.trim(),
+      maps_url: sanitizeHttpUrl(input.metadata.location.maps_url, {
+        allowRelative: false,
+      }),
+      waze_url: sanitizeHttpUrl(input.metadata.location.waze_url, {
+        allowRelative: false,
+      }),
       embed_url: extractEmbedUrl(input.metadata.location.embed_url),
       instructions: input.metadata.location.instructions.trim(),
     },
@@ -528,15 +542,19 @@ export async function saveBusinessInfo(
     places_tips: input.metadata.places_tips
       .map((p) => {
         const cleanedImages = Array.isArray(p.images)
-          ? p.images.map((img) => img.trim()).filter(Boolean)
+          ? p.images
+              .map((img) => sanitizeHttpUrl(img, { allowRelative: false }))
+              .filter(Boolean)
           : p.image_url?.trim()
-            ? [p.image_url.trim()]
+            ? [
+                sanitizeHttpUrl(p.image_url, { allowRelative: false }),
+              ].filter(Boolean)
             : [];
         return {
           name: p.name.trim(),
           category: p.category.trim() || "Gastronomia",
           description: p.description.trim(),
-          link: p.link.trim(),
+          link: sanitizeHttpUrl(p.link, { allowRelative: false }),
           embed_url: extractEmbedUrl(p.embed_url ?? ""),
           image_url: cleanedImages[0] ?? "",
           images: cleanedImages,

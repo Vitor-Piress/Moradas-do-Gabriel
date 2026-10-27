@@ -500,7 +500,7 @@ export function LandingPageEditor({ businessInfo }: LandingPageEditorProps) {
                         )}
                         <input
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/png,image/webp"
                           onChange={(e) => handleSlideImageUpload(idx, e)}
                           disabled={uploadingSlideIndex === idx}
                           className="hidden"
@@ -788,7 +788,7 @@ export function LandingPageEditor({ businessInfo }: LandingPageEditorProps) {
                 )}
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={handleAboutImageUpload}
                   disabled={isUploadingAboutImage}
                   className="hidden"

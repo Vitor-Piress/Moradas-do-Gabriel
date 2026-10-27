@@ -1,0 +1,8 @@
+project_id = "ejdrmaananlxqvbmbcpz"
+
+[functions.r2-upload]
+# Desativa a verificação legada do gateway para permitir o preflight OPTIONS
+# e chaves no formato novo (sb_publishable_...). A validação completa do JWT
+# e da permissão is_admin() é feita dentro de supabase/functions/r2-upload/index.ts.
+verify_jwt = false
+

@@ -1,30 +1,54 @@
-/**
- * Serviço de Upload para Cloudflare R2 Object Storage com compressão automática para WebP.
- *
- * Variáveis de ambiente suportadas no `.env`:
- * - `VITE_R2_PUBLIC_URL`: URL pública do seu bucket R2 (ex: https://pub-xxxxxx.r2.dev ou https://cdn.moradasdogabriel.com.br)
- *
- * Opção A (Via Worker / Supabase Edge Function / Presigned URL):
- * - `VITE_R2_UPLOAD_ENDPOINT`: Endpoint que recebe o arquivo ou gera a Presigned URL
- *
- * Opção B (Upload S3 V4 direto do Admin autenticado para a API S3 do Cloudflare R2):
- * - `VITE_R2_ACCOUNT_ID`: Account ID da Cloudflare
- * - `VITE_R2_BUCKET_NAME`: Nome do bucket no R2
- * - `VITE_R2_ACCESS_KEY_ID`: Access Key ID do token R2
- * - `VITE_R2_SECRET_ACCESS_KEY`: Secret Access Key do token R2
- */
+import { supabase } from "../lib/supabase";
+import { sanitizeHttpUrl } from "../utils/embedUrl";
 
 /**
- * Converte e redimensiona a imagem no navegador para o formato `.webp` antes de enviar ao R2,
- * reduzindo drasticamente o consumo de armazenamento e acelerando o carregamento da Landing Page.
+ * Serviço Seguro de Upload para Cloudflare R2 Object Storage com compressão automática para WebP.
+ *
+ * Arquitetura de Segurança:
+ * - As credenciais do Cloudflare R2 (`R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`,
+ *   `R2_SECRET_ACCESS_KEY`) NUNCA ficam no frontend (`VITE_*`), evitando exposição no bundle público.
+ * - O upload passa pela Supabase Edge Function `r2-upload` (em `supabase/functions/r2-upload/index.ts`)
+ *   ou por um Worker autenticado definido em `VITE_R2_UPLOAD_ENDPOINT`.
+ * - A Edge Function exige JWT válido do Supabase Auth + verificação `public.is_admin()` no banco,
+ *   valida os magic bytes da imagem (WebP/JPEG/PNG) e bloqueia arquivos SVG ou executáveis.
+ * - A conversão para `.webp` via `<canvas>` no navegador também remove metadados EXIF/GPS das fotos.
+ */
+
+const ALLOWED_INPUT_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+const MAX_INPUT_FILE_BYTES = 10 * 1024 * 1024; // 10 MB antes da compressão
+const MAX_WEBP_OUTPUT_BYTES = 5 * 1024 * 1024; // 5 MB após compressão WebP
+
+export const ALLOWED_R2_FOLDERS = [
+  "acomodacoes",
+  "hero",
+  "sobre",
+  "lugares",
+] as const;
+
+export type R2UploadFolder = (typeof ALLOWED_R2_FOLDERS)[number];
+
+/**
+ * Valida e converte a imagem no navegador para `.webp` (removendo metadados EXIF e reduzindo tamanho).
+ * Arquivos SVG são explicitamente bloqueados para prevenir Stored XSS.
  */
 export async function convertImageToWebP(
   file: File,
   maxWidth = 1600,
   quality = 0.84,
 ): Promise<Blob> {
-  if (file.type === "image/svg+xml") {
-    return file;
+  if (!ALLOWED_INPUT_MIME_TYPES.has(file.type)) {
+    throw new Error(
+      "Formato de imagem não permitido. Envie apenas fotos em JPEG, PNG ou WebP.",
+    );
+  }
+
+  if (file.size <= 0 || file.size > MAX_INPUT_FILE_BYTES) {
+    throw new Error("A imagem selecionada excede o limite máximo de 10 MB.");
   }
 
   return new Promise((resolve, reject) => {
@@ -34,6 +58,11 @@ export async function convertImageToWebP(
     img.onload = () => {
       URL.revokeObjectURL(objectUrl);
       let { width, height } = img;
+
+      if (width <= 0 || height <= 0) {
+        reject(new Error("Dimensões de imagem inválidas."));
+        return;
+      }
 
       if (width > maxWidth) {
         height = Math.round((height * maxWidth) / width);
@@ -46,18 +75,26 @@ export async function convertImageToWebP(
 
       const ctx = canvas.getContext("2d");
       if (!ctx) {
-        resolve(file);
+        reject(new Error("Não foi possível inicializar o processador de imagem."));
         return;
       }
 
       ctx.drawImage(img, 0, 0, width, height);
       canvas.toBlob(
         (blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            resolve(file);
+          if (!blob) {
+            reject(new Error("Falha ao converter a imagem para WebP."));
+            return;
           }
+          if (blob.size > MAX_WEBP_OUTPUT_BYTES) {
+            reject(
+              new Error(
+                "A imagem comprimida excede o limite de 5 MB. Tente uma foto menor.",
+              ),
+            );
+            return;
+          }
+          resolve(blob);
         },
         "image/webp",
         quality,
@@ -66,210 +103,91 @@ export async function convertImageToWebP(
 
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      reject(new Error("Não foi possível processar a imagem selecionada."));
+      reject(new Error("Arquivo de imagem inválido ou corrompido."));
     };
 
     img.src = objectUrl;
   });
 }
 
-function toHex(buffer: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function sha256Hex(data: string | ArrayBuffer): Promise<string> {
-  const buffer =
-    typeof data === "string" ? new TextEncoder().encode(data) : data;
-  const hash = await crypto.subtle.digest("SHA-256", buffer);
-  return toHex(hash);
-}
-
-async function hmacSha256(
-  key: ArrayBuffer | Uint8Array,
-  message: string,
-): Promise<ArrayBuffer> {
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    key as BufferSource,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  return crypto.subtle.sign(
-    "HMAC",
-    cryptoKey,
-    new TextEncoder().encode(message),
-  );
-}
-
-export function isR2Configured(): boolean {
-  const uploadEndpoint = import.meta.env.VITE_R2_UPLOAD_ENDPOINT as
-    | string
-    | undefined;
-  const accountId = import.meta.env.VITE_R2_ACCOUNT_ID as string | undefined;
-  const bucket = import.meta.env.VITE_R2_BUCKET_NAME as string | undefined;
-  const accessKeyId = import.meta.env.VITE_R2_ACCESS_KEY_ID as
-    | string
-    | undefined;
-  const secretAccessKey = import.meta.env.VITE_R2_SECRET_ACCESS_KEY as
-    | string
-    | undefined;
-
-  return Boolean(
-    uploadEndpoint || (accountId && bucket && accessKeyId && secretAccessKey),
-  );
-}
-
-export type R2UploadFolder =
-  | "acomodacoes"
-  | "hero"
-  | "sobre"
-  | "lugares"
-  | string;
-
 /**
- * Faz o upload de um arquivo de imagem para o Cloudflare R2 Object Storage
- * e retorna a URL pública final da imagem.
+ * Envia a imagem convertida em WebP para o Cloudflare R2 através da Edge Function
+ * autenticada (`r2-upload`), garantindo que nenhuma chave secreta fique exposta no cliente.
  */
 export async function uploadImageToR2(
   file: File,
   folder: R2UploadFolder = "acomodacoes",
 ): Promise<string> {
+  if (!ALLOWED_R2_FOLDERS.includes(folder)) {
+    throw new Error("Pasta de destino inválida.");
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error("Sessão expirada. Faça login novamente para enviar imagens.");
+  }
+
   const webpBlob = await convertImageToWebP(file);
-  const ext = file.type === "image/svg+xml" ? "svg" : "webp";
-  const contentType =
-    file.type === "image/svg+xml" ? "image/svg+xml" : "image/webp";
+  const safeFile = new File([webpBlob], "upload.webp", { type: "image/webp" });
 
-  const cleanBaseName = file.name
-    .replace(/\.[^/.]+$/, "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40);
+  const formData = new FormData();
+  formData.append("folder", folder);
+  formData.append("file", safeFile);
 
-  const objectKey = `${folder}/${Date.now()}-${cleanBaseName || "foto"}.${ext}`;
-
-  const uploadEndpoint = (
+  const supabaseUrl = (
+    (import.meta.env.VITE_SUPABASE_URL as string) || ""
+  ).replace(/\/+$/, "");
+  const customEndpoint = (
     (import.meta.env.VITE_R2_UPLOAD_ENDPOINT as string) || ""
   ).trim();
-  const publicBaseUrl = ((import.meta.env.VITE_R2_PUBLIC_URL as string) || "")
-    .trim()
-    .replace(/\/+$/, "");
 
-  // 1. Caso haja um Worker / Edge Function configurado em VITE_R2_UPLOAD_ENDPOINT
-  if (uploadEndpoint) {
-    const formData = new FormData();
-    formData.append("file", webpBlob, objectKey);
-    formData.append("key", objectKey);
+  const endpointUrl = sanitizeHttpUrl(
+    customEndpoint || `${supabaseUrl}/functions/v1/r2-upload`,
+    { allowRelative: false },
+  );
 
-    const response = await fetch(uploadEndpoint, {
+  if (!endpointUrl) {
+    throw new Error("Endpoint de upload não configurado.");
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(endpointUrl, {
       method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
       body: formData,
     });
-
-    if (!response.ok) {
-      throw new Error(
-        `Falha no upload para o endpoint R2 (${response.status})`,
-      );
-    }
-
-    const result = (await response.json()) as { url?: string; key?: string };
-    if (result.url) return result.url;
-    if (result.key && publicBaseUrl) return `${publicBaseUrl}/${result.key}`;
-  }
-
-  // 2. Upload direto via S3 Signature V4 para o Cloudflare R2
-  const accountId = (
-    (import.meta.env.VITE_R2_ACCOUNT_ID as string) || ""
-  ).trim();
-  const bucket = ((import.meta.env.VITE_R2_BUCKET_NAME as string) || "").trim();
-  const accessKeyId = (
-    (import.meta.env.VITE_R2_ACCESS_KEY_ID as string) || ""
-  ).trim();
-  const secretAccessKey = (
-    (import.meta.env.VITE_R2_SECRET_ACCESS_KEY as string) || ""
-  ).trim();
-
-  if (!accountId || !bucket || !accessKeyId || !secretAccessKey) {
+  } catch {
     throw new Error(
-      "Credenciais do Cloudflare R2 não encontradas no .env (defina VITE_R2_ACCOUNT_ID, VITE_R2_BUCKET_NAME, VITE_R2_ACCESS_KEY_ID, VITE_R2_SECRET_ACCESS_KEY e VITE_R2_PUBLIC_URL).",
+      "Falha de conexão (CORS/Rede) ao acessar a Edge Function 'r2-upload'. Certifique-se de que ela foi publicada no Supabase com: npx supabase functions deploy r2-upload --no-verify-jwt",
     );
   }
 
-  const host = `${accountId}.r2.cloudflarestorage.com`;
-  const endpointUrl = `https://${host}/${bucket}/${objectKey}`;
-  const region = "auto";
-  const service = "s3";
+  const payload = (await response.json().catch(() => ({}))) as {
+    url?: string;
+    error?: string;
+    message?: string;
+  };
 
-  const now = new Date();
-  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
-  const dateStamp = amzDate.slice(0, 8);
-
-  const payloadBuffer = await webpBlob.arrayBuffer();
-  const payloadHash = await sha256Hex(payloadBuffer);
-
-  const canonicalUri = `/${bucket}/${objectKey}`;
-  const canonicalQueryString = "";
-  const canonicalHeaders =
-    `content-type:${contentType}\n` +
-    `host:${host}\n` +
-    `x-amz-content-sha256:${payloadHash}\n` +
-    `x-amz-date:${amzDate}\n`;
-  const signedHeaders = "content-type;host;x-amz-content-sha256;x-amz-date";
-
-  const canonicalRequest = [
-    "PUT",
-    canonicalUri,
-    canonicalQueryString,
-    canonicalHeaders,
-    signedHeaders,
-    payloadHash,
-  ].join("\n");
-
-  const algorithm = "AWS4-HMAC-SHA256";
-  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
-  const stringToSign = [
-    algorithm,
-    amzDate,
-    credentialScope,
-    await sha256Hex(canonicalRequest),
-  ].join("\n");
-
-  const kSecret = new TextEncoder().encode(`AWS4${secretAccessKey}`);
-  const kDate = await hmacSha256(kSecret, dateStamp);
-  const kRegion = await hmacSha256(kDate, region);
-  const kService = await hmacSha256(kRegion, service);
-  const kSigning = await hmacSha256(kService, "aws4_request");
-  const signature = toHex(await hmacSha256(kSigning, stringToSign));
-
-  const authorizationHeader =
-    `${algorithm} Credential=${accessKeyId}/${credentialScope}, ` +
-    `SignedHeaders=${signedHeaders}, Signature=${signature}`;
-
-  const putResponse = await fetch(endpointUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": contentType,
-      "x-amz-content-sha256": payloadHash,
-      "x-amz-date": amzDate,
-      Authorization: authorizationHeader,
-    },
-    body: payloadBuffer,
-  });
-
-  if (!putResponse.ok) {
+  if (!response.ok) {
     throw new Error(
-      `Erro ao enviar arquivo para o Cloudflare R2 (${putResponse.status}). Verifique o CORS do bucket R2.`,
+      payload.error ||
+        payload.message ||
+        `Falha no upload da imagem (HTTP ${response.status}).`,
     );
   }
 
-  if (publicBaseUrl) {
-    return `${publicBaseUrl}/${objectKey}`;
+  const cleanUrl = sanitizeHttpUrl(payload.url || "", { allowRelative: false });
+  if (!cleanUrl) {
+    throw new Error(
+      payload.error || "Não foi possível obter a URL pública da imagem enviada.",
+    );
   }
 
-  return endpointUrl;
+  return cleanUrl;
 }

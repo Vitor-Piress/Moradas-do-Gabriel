@@ -1,5 +1,6 @@
 import type { LinkInsert, LinkRow, LinkUpdate } from "../@types/database.types";
 import { supabase } from "../lib/supabase";
+import { sanitizeHttpUrl } from "../utils/embedUrl";
 
 /**
  * Busca apenas os links ativos para exibição na Página Pública,
@@ -18,7 +19,10 @@ export async function getActiveLinks(): Promise<LinkRow[]> {
     throw error;
   }
 
-  return data ?? [];
+  return (data ?? []).map((row) => ({
+    ...row,
+    url: sanitizeHttpUrl(row.url, { allowMailtoTel: true }) || "#",
+  }));
 }
 
 /**
@@ -60,11 +64,18 @@ export async function createLink(payload: LinkInsert): Promise<LinkRow> {
     nextPosition = maxPos + 1;
   }
 
+  const safeUrl = sanitizeHttpUrl(payload.url, { allowMailtoTel: true });
+  if (!safeUrl) {
+    throw new Error(
+      "URL inválida. Utilize um endereço iniciando com https://, http://, mailto:, tel: ou caminho relativo.",
+    );
+  }
+
   const { data, error } = await supabase
     .from("links")
     .insert({
-      title: payload.title.trim(),
-      url: payload.url.trim(),
+      title: payload.title.trim().slice(0, 150),
+      url: safeUrl,
       icon: payload.icon ?? "link",
       is_active: payload.is_active ?? true,
       position: nextPosition,
@@ -87,10 +98,22 @@ export async function updateLink(
   id: string,
   updates: LinkUpdate,
 ): Promise<LinkRow> {
+  let safeUrl: string | undefined;
+  if (updates.url !== undefined) {
+    safeUrl = sanitizeHttpUrl(updates.url, { allowMailtoTel: true });
+    if (!safeUrl) {
+      throw new Error(
+        "URL inválida. Utilize um endereço iniciando com https://, http://, mailto:, tel: ou caminho relativo.",
+      );
+    }
+  }
+
   const cleanUpdates: LinkUpdate = {
     ...updates,
-    ...(updates.title !== undefined ? { title: updates.title.trim() } : {}),
-    ...(updates.url !== undefined ? { url: updates.url.trim() } : {}),
+    ...(updates.title !== undefined
+      ? { title: updates.title.trim().slice(0, 150) }
+      : {}),
+    ...(safeUrl !== undefined ? { url: safeUrl } : {}),
   };
 
   const { data, error } = await supabase

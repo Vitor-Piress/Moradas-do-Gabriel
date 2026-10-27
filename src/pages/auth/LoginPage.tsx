@@ -9,43 +9,120 @@ import {
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import logoMoradas from "../../assets/logoMoradasdoGabriel.png";
+import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
+
+const LOGIN_LOCKOUT_STORAGE_KEY = "moradas_gabriel_login_lockout";
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 60 * 1000; // 60 segundos de bloqueio após 5 falhas seguidas
+
+function getLockoutRemainingSeconds(): number {
+  try {
+    const raw = sessionStorage.getItem(LOGIN_LOCKOUT_STORAGE_KEY);
+    if (!raw) return 0;
+    const parsed = JSON.parse(raw) as { count?: number; until?: number };
+    if (!parsed.until || Date.now() >= parsed.until) {
+      return 0;
+    }
+    return Math.ceil((parsed.until - Date.now()) / 1000);
+  } catch {
+    return 0;
+  }
+}
+
+function registerFailedAttempt(): number {
+  try {
+    const raw = sessionStorage.getItem(LOGIN_LOCKOUT_STORAGE_KEY);
+    const parsed = raw
+      ? (JSON.parse(raw) as { count?: number; until?: number })
+      : {};
+    const nextCount = (parsed.count ?? 0) + 1;
+    const until =
+      nextCount >= MAX_FAILED_ATTEMPTS ? Date.now() + LOCKOUT_DURATION_MS : 0;
+    sessionStorage.setItem(
+      LOGIN_LOCKOUT_STORAGE_KEY,
+      JSON.stringify({ count: until ? 0 : nextCount, until }),
+    );
+    return until ? Math.ceil(LOCKOUT_DURATION_MS / 1000) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function clearFailedAttempts(): void {
+  try {
+    sessionStorage.removeItem(LOGIN_LOCKOUT_STORAGE_KEY);
+  } catch {
+    // Ignora caso sessionStorage esteja indisponível
+  }
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { session, isAdmin, isLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/admin", { replace: true });
-      }
-    });
-  }, [navigate]);
+    if (!isLoading && session && isAdmin) {
+      navigate("/admin", { replace: true });
+    }
+  }, [isLoading, session, isAdmin, navigate]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
+    const remainingLockout = getLockoutRemainingSeconds();
+    if (remainingLockout > 0) {
+      setErrorMessage(
+        `Muitas tentativas seguidas. Aguarde ${remainingLockout}s antes de tentar novamente.`,
+      );
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         password,
       });
 
       if (error) {
+        const waitSecs = registerFailedAttempt();
+        if (waitSecs > 0) {
+          setErrorMessage(
+            `Muitas tentativas incorretas. Aguarde ${waitSecs} segundos antes de tentar novamente.`,
+          );
+        } else {
+          // Mensagem padronizada para não expor detalhes internos ou enumeração de contas
+          setErrorMessage(
+            "E-mail ou senha incorretos. Verifique suas credenciais.",
+          );
+        }
+        return;
+      }
+
+      // Verifica se o usuário autenticado possui permissão de administrador (allowlist)
+      const { data: adminCheck, error: rpcError } =
+        await supabase.rpc("is_admin");
+      const isMissingRpc =
+        rpcError &&
+        (rpcError.code === "PGRST202" ||
+          rpcError.message?.includes("is_admin"));
+
+      if (!isMissingRpc && adminCheck !== true) {
+        await supabase.auth.signOut();
         setErrorMessage(
-          error.message === "Invalid login credentials"
-            ? "E-mail ou senha incorretos. Verifique suas credenciais."
-            : error.message,
+          "Esta conta não possui permissão de administrador para acessar o painel.",
         );
         return;
       }
 
+      clearFailedAttempts();
       navigate("/admin", { replace: true });
     } catch {
       setErrorMessage(

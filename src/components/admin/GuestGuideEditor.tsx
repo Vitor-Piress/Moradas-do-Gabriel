@@ -51,24 +51,24 @@ const PLACE_CATEGORY_OPTIONS = [
   "Mercados",
 ] as const;
 
-function getPlaceCategoryIcon(category: string) {
+function renderPlaceCategoryIcon(category: string, className: string) {
   const normalized = category.toLowerCase();
   if (
     normalized.includes("gastronomia") ||
     normalized.includes("restaurante")
   ) {
-    return Utensils;
+    return <Utensils className={className} />;
   }
   if (normalized.includes("praia")) {
-    return Umbrella;
+    return <Umbrella className={className} />;
   }
   if (normalized.includes("passeio")) {
-    return Compass;
+    return <Compass className={className} />;
   }
   if (normalized.includes("mercado") || normalized.includes("conveniência")) {
-    return ShoppingBag;
+    return <ShoppingBag className={className} />;
   }
-  return Sparkles;
+  return <Sparkles className={className} />;
 }
 
 export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
@@ -904,9 +904,6 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
                 link: "",
               });
 
-          const PreviewCategoryIcon = getPlaceCategoryIcon(
-            activePlace.category || "Gastronomia",
-          );
           const previewEmbed = extractEmbedUrl(activePlace.embed_url ?? "");
           const previewImages = getPlaceImagesList(activePlace);
           const safeImgIdx =
@@ -974,7 +971,10 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
                       {activePlace.name || "Nome do Local"}
                     </h5>
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-brand-bg border border-slate-200 text-brand-navy shrink-0">
-                      <PreviewCategoryIcon className="w-3 h-3 shrink-0" />
+                      {renderPlaceCategoryIcon(
+                        activePlace.category || "Gastronomia",
+                        "w-3 h-3 shrink-0",
+                      )}
                       <span>{activePlace.category || "Gastronomia"}</span>
                     </span>
                   </div>
@@ -1101,7 +1101,7 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
               )}
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 multiple
                 onChange={handleNewPlaceImageUpload}
                 disabled={isUploadingNewPlaceImage}
@@ -1268,7 +1268,7 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
                       )}
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp"
                         multiple
                         onChange={(e) => handleExistingPlaceImageUpload(idx, e)}
                         disabled={uploadingPlaceIndex === idx}

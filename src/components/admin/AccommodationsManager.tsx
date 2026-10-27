@@ -619,7 +619,7 @@ export function AccommodationsManager({
                     )}
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp"
                       onChange={handleCoverUpload}
                       disabled={isUploadingCover}
                       className="hidden"
@@ -677,7 +677,7 @@ export function AccommodationsManager({
                     )}
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp"
                       multiple
                       onChange={handleGalleryUpload}
                       disabled={isUploadingGallery}

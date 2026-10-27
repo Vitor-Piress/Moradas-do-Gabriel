@@ -1,24 +1,85 @@
+const ALLOWED_EMBED_HOSTS = new Set([
+  "www.google.com",
+  "maps.google.com",
+  "www.google.com.br",
+  "maps.google.com.br",
+]);
+
+/**
+ * Valida e sanitiza URLs destinadas a atributos `href` ou `src`, bloqueando
+ * esquemas executáveis (`javascript:`, `data:`, `vbscript:`, `file:`, etc.).
+ */
+export function sanitizeHttpUrl(
+  input: string,
+  options: { allowRelative?: boolean; allowMailtoTel?: boolean } = {},
+): string {
+  const trimmed = (input || "").trim();
+  if (!trimmed) return "";
+
+  // Permite âncoras (#secao) ou caminhos internos (/rota) quando habilitado
+  if (options.allowRelative && /^(#[a-zA-Z0-9_-]*|\/[a-zA-Z0-9/_-]*)$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const protocol = parsed.protocol.toLowerCase();
+
+    if (protocol === "https:" || protocol === "http:") {
+      return parsed.toString();
+    }
+
+    if (
+      options.allowMailtoTel &&
+      (protocol === "mailto:" || protocol === "tel:")
+    ) {
+      return trimmed;
+    }
+
+    return "";
+  } catch {
+    return "";
+  }
+}
+
 /**
  * Extrai apenas a URL do atributo `src` caso o usuário cole a tag `<iframe ...>`
- * completa do Google Maps Embed, ou retorna a própria URL limpa.
+ * completa do Google Maps Embed, e valida que o domínio pertence ao Google Maps
+ * via HTTPS (prevenindo injeção de iframes arbitrários ou `javascript:`).
  */
 export function extractEmbedUrl(input: string): string {
   if (!input) return "";
   const trimmed = input.trim();
 
+  let candidate = trimmed;
+
   // Verifica se contém uma tag <iframe ... src="..."> ou src='...'
   const srcMatch = trimmed.match(/<iframe[^>]*\ssrc=["']([^"']+)["'][^>]*>/i);
   if (srcMatch && srcMatch[1]) {
-    return srcMatch[1].replace(/&amp;/g, "&").trim();
+    candidate = srcMatch[1].replace(/&amp;/g, "&").trim();
+  } else {
+    // Fallback caso tenha apenas src="..." avulso
+    const fallbackMatch = trimmed.match(/src=["']([^"']+)["']/i);
+    if (fallbackMatch && fallbackMatch[1]) {
+      candidate = fallbackMatch[1].replace(/&amp;/g, "&").trim();
+    }
   }
 
-  // Fallback caso tenha apenas src="..." avulso
-  const fallbackMatch = trimmed.match(/src=["']([^"']+)["']/i);
-  if (fallbackMatch && fallbackMatch[1]) {
-    return fallbackMatch[1].replace(/&amp;/g, "&").trim();
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "https:") {
+      return "";
+    }
+    if (!ALLOWED_EMBED_HOSTS.has(parsed.hostname.toLowerCase())) {
+      return "";
+    }
+    if (!parsed.pathname.startsWith("/maps")) {
+      return "";
+    }
+    return parsed.toString();
+  } catch {
+    return "";
   }
-
-  return trimmed;
 }
 
 /**
@@ -85,7 +146,7 @@ export function formatWhatsAppUrl(
   if (!trimmed) return "";
 
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    return trimmed;
+    return sanitizeHttpUrl(trimmed);
   }
 
   const digits = extractPhoneDigits(trimmed);
@@ -104,11 +165,10 @@ export function formatInstagramUrl(instagramInput: string): string {
   if (!trimmed) return "";
 
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-    return trimmed;
+    return sanitizeHttpUrl(trimmed);
   }
 
   const handle = extractInstagramHandle(trimmed);
   if (!handle) return "";
   return `https://instagram.com/${handle}`;
 }
-

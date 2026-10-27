@@ -6,6 +6,7 @@ import type {
   TypedAccommodation,
 } from "../@types/database.types";
 import { supabase } from "../lib/supabase";
+import { sanitizeHttpUrl } from "../utils/embedUrl";
 
 export const DEFAULT_ACCOMMODATIONS: TypedAccommodation[] = [
   {
@@ -136,7 +137,7 @@ function normalizeAccommodationRow(row: AccommodationRow): TypedAccommodation {
   const gallery: string[] = Array.isArray(row.gallery)
     ? row.gallery
         .filter((g): g is string => typeof g === "string")
-        .map((g) => g.trim())
+        .map((g) => sanitizeHttpUrl(g, { allowRelative: false }))
         .filter(Boolean)
     : [];
 
@@ -149,6 +150,7 @@ function normalizeAccommodationRow(row: AccommodationRow): TypedAccommodation {
 
   return {
     ...row,
+    cover_image: sanitizeHttpUrl(row.cover_image, { allowRelative: false }),
     beds,
     gallery,
     extra_amenities,
@@ -264,8 +266,12 @@ export async function createAccommodation(
       slug: baseSlug,
       short_description: payload.short_description.trim(),
       full_description: payload.full_description.trim(),
-      cover_image: payload.cover_image.trim(),
-      gallery: payload.gallery.map((g) => g.trim()).filter(Boolean) as unknown as Json,
+      cover_image: sanitizeHttpUrl(payload.cover_image, {
+        allowRelative: false,
+      }),
+      gallery: payload.gallery
+        .map((g) => sanitizeHttpUrl(g, { allowRelative: false }))
+        .filter(Boolean) as unknown as Json,
       max_guests: Math.max(1, Number(payload.max_guests) || 2),
       beds: payload.beds as unknown as Json,
       has_kitchen: payload.has_kitchen,
@@ -317,10 +323,14 @@ export async function updateAccommodation(
     updateData.full_description = payload.full_description.trim();
   }
   if (payload.cover_image !== undefined) {
-    updateData.cover_image = payload.cover_image.trim();
+    updateData.cover_image = sanitizeHttpUrl(payload.cover_image, {
+      allowRelative: false,
+    });
   }
   if (payload.gallery !== undefined) {
-    updateData.gallery = payload.gallery.map((g) => g.trim()).filter(Boolean) as unknown as Json;
+    updateData.gallery = payload.gallery
+      .map((g) => sanitizeHttpUrl(g, { allowRelative: false }))
+      .filter(Boolean) as unknown as Json;
   }
   if (payload.max_guests !== undefined) {
     updateData.max_guests = Math.max(1, Number(payload.max_guests) || 1);
