@@ -317,7 +317,9 @@ export function normalizeBusinessMetadata(
                 : "Saiba Mais",
             cta_href:
               typeof item.cta_href === "string" && item.cta_href.trim()
-                ? sanitizeHttpUrl(item.cta_href.trim()) || "#acomodacoes"
+                ? sanitizeHttpUrl(item.cta_href.trim(), {
+                    allowRelative: true,
+                  }) || "#acomodacoes"
                 : "#acomodacoes",
           }))
           .filter((item) => item.title.trim() !== "")
