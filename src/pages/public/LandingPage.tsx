@@ -41,11 +41,7 @@ import {
   formatPhoneMask,
   formatWhatsAppUrl,
 } from "../../utils/embedUrl";
-import {
-  InstagramIcon,
-  WazeIcon,
-  WhatsAppIcon,
-} from "../../utils/iconMapper";
+import { InstagramIcon, WazeIcon, WhatsAppIcon } from "../../utils/iconMapper";
 
 function formatBedsSummary(acc: TypedAccommodation): string {
   if (!acc.beds || acc.beds.length === 0) {
@@ -132,13 +128,13 @@ export function LandingPage() {
       >
         <nav
           aria-label="Navegação flutuante"
-          className="px-3 sm:px-4 py-2 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-md flex items-center justify-between gap-2"
+          className="px-3 sm:px-4 py-2 rounded-2xl bg-white/98 backdrop-blur-md border border-white ring-2 ring-white/70 shadow-[0_14px_35px_-10px_rgba(11,41,99,0.3)] flex items-center justify-between gap-2"
         >
           <a
             href="#inicio"
             className="flex items-center gap-2 min-w-0 shrink-0"
           >
-            <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 p-0.5 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 p-0.5 flex items-center justify-center shrink-0 shadow-sm">
               <img
                 src="/logoMoradasdoGabriel.svg"
                 alt="Moradas do Gabriel"
@@ -176,7 +172,7 @@ export function LandingPage() {
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => trackLinkClick(null, "floating_header_whatsapp")}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-navy hover:bg-brand-navy-light text-white text-xs font-semibold transition-colors shrink-0"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-green hover:bg-brand-green/85 text-brand-navy text-xs font-bold shadow-sm transition-colors shrink-0"
           >
             <WhatsAppIcon className="w-3.5 h-3.5 shrink-0" />
             <span>Reservar</span>
@@ -330,7 +326,9 @@ export function LandingPage() {
                       href={whatsappUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={() => trackLinkClick(null, "hero_slide_whatsapp")}
+                      onClick={() =>
+                        trackLinkClick(null, "hero_slide_whatsapp")
+                      }
                       className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-brand-navy/85 backdrop-blur-xs border border-white/30 text-white font-semibold text-xs sm:text-sm hover:bg-brand-navy transition-colors"
                     >
                       <WhatsAppIcon className="w-4 h-4 shrink-0" />
@@ -846,8 +844,7 @@ export function LandingPage() {
             <p className="font-medium text-center sm:text-left">
               © {new Date().getFullYear()}{" "}
               {landing.footer.company_name || "Pousada Moradas do Gabriel"}.{" "}
-              {landing.footer.copyright_note ||
-                "Todos os direitos reservados."}
+              {landing.footer.copyright_note || "Todos os direitos reservados."}
             </p>
 
             <Link
@@ -863,4 +860,3 @@ export function LandingPage() {
     </div>
   );
 }
-
