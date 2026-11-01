@@ -238,11 +238,11 @@ export function LandingPage() {
           <div
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
-            className="rounded-3xl bg-white border border-slate-200 p-3 sm:p-4 shadow-xs space-y-3"
+            className="rounded-3xl bg-white border border-slate-200 p-2.5 sm:p-4 shadow-xs space-y-2.5 sm:space-y-3"
           >
             {/* Abas de Tópicos do Carrossel */}
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1 flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {slides.map((slide, idx) => {
                   const isActive = idx === activeSlideIndex;
                   return (
@@ -250,7 +250,7 @@ export function LandingPage() {
                       key={slide.id || idx}
                       type="button"
                       onClick={() => setActiveSlideIndex(idx)}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                      className={`${!isActive ? "hidden sm:inline-flex" : "inline-flex"} shrink-0 whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors ${
                         isActive
                           ? "bg-brand-navy text-white shadow-xs"
                           : "bg-brand-bg text-brand-navy/75 border border-slate-200 hover:text-brand-navy hover:bg-slate-100"
@@ -263,7 +263,7 @@ export function LandingPage() {
               </div>
 
               {slides.length > 1 && (
-                <div className="flex items-center gap-1.5 ml-auto">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
                     onClick={handlePrevSlide}
@@ -286,7 +286,7 @@ export function LandingPage() {
 
             {/* Banner Visual do Slide Ativo */}
             {currentSlide && (
-              <div className="relative overflow-hidden rounded-2xl min-h-[380px] sm:min-h-[460px] flex items-end bg-brand-navy">
+              <div className="relative overflow-hidden rounded-2xl min-h-[440px] sm:min-h-[460px] flex items-end bg-brand-navy">
                 {currentSlide.image_url && (
                   <img
                     key={currentSlide.image_url}
@@ -297,14 +297,14 @@ export function LandingPage() {
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-brand-navy/95 via-brand-navy/55 to-brand-navy/15" />
 
-                <div className="relative z-10 w-full p-6 sm:p-10 md:p-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-                  <div className="max-w-2xl space-y-3">
+                <div className="relative z-10 w-full p-5 sm:p-10 md:p-12 flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6">
+                  <div className="max-w-2xl space-y-2.5 sm:space-y-3">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-xs border border-white/25 text-white text-[11px] font-semibold uppercase tracking-wider">
                       <Waves className="w-3.5 h-3.5 shrink-0" />
                       <span>{currentSlide.topic}</span>
                     </span>
 
-                    <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight leading-tight break-words">
+                    <h1 className="text-xl sm:text-4xl md:text-5xl font-bold text-white tracking-tight leading-tight break-words">
                       {currentSlide.title}
                     </h1>
 
@@ -313,10 +313,10 @@ export function LandingPage() {
                     </p>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
                     <a
                       href={currentSlide.cta_href || "#acomodacoes"}
-                      className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-white text-brand-navy font-bold text-xs sm:text-sm hover:bg-brand-bg transition-colors"
+                      className="inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-3 rounded-xl bg-white text-brand-navy font-bold text-xs sm:text-sm hover:bg-brand-bg transition-colors"
                     >
                       <span>{currentSlide.cta_label || "Saiba Mais"}</span>
                       <ArrowRight className="w-4 h-4 shrink-0" />
@@ -329,7 +329,7 @@ export function LandingPage() {
                       onClick={() =>
                         trackLinkClick(null, "hero_slide_whatsapp")
                       }
-                      className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-brand-navy/85 backdrop-blur-xs border border-white/30 text-white font-semibold text-xs sm:text-sm hover:bg-brand-navy transition-colors"
+                      className="inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-3 rounded-xl bg-brand-navy/85 backdrop-blur-xs border border-white/30 text-white font-semibold text-xs sm:text-sm hover:bg-brand-navy transition-colors"
                     >
                       <WhatsAppIcon className="w-4 h-4 shrink-0" />
                       <span>Consultar Datas</span>
