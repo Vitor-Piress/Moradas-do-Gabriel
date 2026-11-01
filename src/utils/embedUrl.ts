@@ -17,7 +17,10 @@ export function sanitizeHttpUrl(
   if (!trimmed) return "";
 
   // Permite âncoras (#secao) ou caminhos internos (/rota) quando habilitado
-  if (options.allowRelative && /^(#[a-zA-Z0-9_-]*|\/[a-zA-Z0-9/_-]*)$/.test(trimmed)) {
+  if (
+    options.allowRelative &&
+    /^(#[a-zA-Z0-9_-]*|\/[a-zA-Z0-9/_-]*(#[a-zA-Z0-9_-]+)?)$/.test(trimmed)
+  ) {
     return trimmed;
   }
 

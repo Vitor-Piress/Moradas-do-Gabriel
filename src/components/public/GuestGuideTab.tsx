@@ -310,6 +310,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
       {/* 2. Internet da Pousada (Seção de Wi-Fi com Senha Oculta por Padrão) */}
       <section
         aria-label="Conexão Wi-Fi"
+        id="guia-wifi"
         className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -443,6 +444,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
       {/* 3. Regras da Hospedagem */}
       <section
         aria-label="Regras da Hospedagem"
+        id="guia-regras"
         className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -484,6 +486,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
       {/* 4. Dicas de Restaurantes e Lugares */}
       <section
         aria-label="Dicas de Restaurantes e Lugares"
+        id="guia-dicas"
         className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
       >
         <div className="flex items-center gap-3 min-w-0">

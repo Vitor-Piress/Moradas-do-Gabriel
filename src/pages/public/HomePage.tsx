@@ -27,6 +27,21 @@ export function HomePage() {
     trackPageView(activeTab === "guide" ? "guia_do_hospede" : "links_contato");
   }, [activeTab]);
 
+  useEffect(() => {
+    if (activeTab !== "guide" || !location.hash) return;
+
+    const sectionId = decodeURIComponent(location.hash.slice(1));
+    const scrollToSection = () => {
+      document.getElementById(sectionId)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    };
+
+    const frameId = window.requestAnimationFrame(scrollToSection);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeTab, location.hash]);
+
   return (
     <div className="min-h-screen bg-brand-bg text-brand-navy flex flex-col justify-between">
       <div className="w-full max-w-lg mx-auto px-4 pb-10">
