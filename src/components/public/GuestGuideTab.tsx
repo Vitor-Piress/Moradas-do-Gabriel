@@ -311,7 +311,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
       <section
         aria-label="Conexão Wi-Fi"
         id="guia-wifi"
-        className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
+        className="scroll-mt-4 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
@@ -445,7 +445,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
       <section
         aria-label="Regras da Hospedagem"
         id="guia-regras"
-        className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
+        className="scroll-mt-4 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-brand-bg border border-slate-200 text-brand-navy flex items-center justify-center shrink-0">
@@ -487,7 +487,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
       <section
         aria-label="Dicas de Restaurantes e Lugares"
         id="guia-dicas"
-        className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
+        className="scroll-mt-4 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-brand-bg border border-slate-200 text-brand-navy flex items-center justify-center shrink-0">

@@ -31,15 +31,53 @@ export function HomePage() {
     if (activeTab !== "guide" || !location.hash) return;
 
     const sectionId = decodeURIComponent(location.hash.slice(1));
+    const scrollDelay = 650;
+    const scrollDuration = 1400;
+    let animationFrameId = 0;
+
+    window.scrollTo({ top: 0, behavior: "auto" });
+
     const scrollToSection = () => {
-      document.getElementById(sectionId)?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      const target = document.getElementById(sectionId);
+      if (!target) return;
+
+      const startPosition = window.scrollY;
+      const targetPosition =
+        target.getBoundingClientRect().top + startPosition - 16;
+      const distance = targetPosition - startPosition;
+      const startTime = performance.now();
+
+      const animateScroll = (currentTime: number) => {
+        const progress = Math.min(
+          (currentTime - startTime) / scrollDuration,
+          1,
+        );
+        const easedProgress =
+          progress < 0.5
+            ? 2 * progress * progress
+            : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+        window.scrollTo({
+          top: startPosition + distance * easedProgress,
+          behavior: "auto",
+        });
+
+        if (progress < 1) {
+          animationFrameId = window.requestAnimationFrame(animateScroll);
+        }
+      };
+
+      animationFrameId = window.requestAnimationFrame(animateScroll);
     };
 
-    const frameId = window.requestAnimationFrame(scrollToSection);
-    return () => window.cancelAnimationFrame(frameId);
+    const scrollTimeoutId = window.setTimeout(() => {
+      scrollToSection();
+    }, scrollDelay);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      window.clearTimeout(scrollTimeoutId);
+    };
   }, [activeTab, location.hash]);
 
   return (
