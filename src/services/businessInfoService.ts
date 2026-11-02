@@ -323,7 +323,7 @@ export function normalizeBusinessMetadata(
                 : "#acomodacoes",
           }))
           .filter((item) => item.title.trim() !== "")
-      : structuredClone(DEFAULT_LANDING_METADATA.hero_slides);
+      : [];
 
   const aboutHighlights: AboutHighlightItem[] =
     Array.isArray(rawAbout.highlights) && rawAbout.highlights.length > 0

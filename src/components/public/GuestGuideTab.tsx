@@ -226,7 +226,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
       <section
         id="como-chegar"
         aria-label="Como Chegar e Mapas"
-        className="scroll-mt-4 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
+        className="motion-card scroll-mt-4 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-brand-bg border border-slate-200 text-brand-navy flex items-center justify-center shrink-0">
@@ -311,7 +311,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
       <section
         aria-label="Conexão Wi-Fi"
         id="guia-wifi"
-        className="scroll-mt-4 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
+        className="motion-card scroll-mt-4 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
@@ -445,7 +445,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
       <section
         aria-label="Regras da Hospedagem"
         id="guia-regras"
-        className="scroll-mt-4 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
+        className="motion-card scroll-mt-4 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-brand-bg border border-slate-200 text-brand-navy flex items-center justify-center shrink-0">
@@ -487,7 +487,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
       <section
         aria-label="Dicas de Restaurantes e Lugares"
         id="guia-dicas"
-        className="scroll-mt-4 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
+        className="motion-card scroll-mt-4 rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs space-y-4"
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-brand-bg border border-slate-200 text-brand-navy flex items-center justify-center shrink-0">
@@ -512,7 +512,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
                   isActive
                     ? "bg-brand-navy text-white"
                     : "bg-brand-bg text-brand-navy/80 border border-slate-200 hover:bg-slate-100"
@@ -547,7 +547,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
               return (
                 <article
                   key={placeKey}
-                  className="rounded-xl bg-brand-bg border border-slate-200 p-4 flex flex-col justify-between gap-3"
+                  className="motion-card rounded-xl bg-brand-bg border border-slate-200 p-4 flex flex-col justify-between gap-3"
                 >
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex items-start justify-between gap-2 flex-wrap">
@@ -700,11 +700,11 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
             aria-modal="true"
             aria-label={`Galeria de fotos - ${lightboxState.placeName}`}
             onClick={() => setLightboxState(null)}
-            className="fixed inset-0 z-[100] bg-brand-navy/80 backdrop-blur-xs p-3 sm:p-6 flex items-center justify-center"
+            className="lightbox-backdrop fixed inset-0 z-[100] bg-brand-navy/80 backdrop-blur-xs p-3 sm:p-6 flex items-center justify-center"
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-3xl max-h-[92vh] rounded-3xl bg-white border border-slate-200 p-3.5 sm:p-5 shadow-2xl flex flex-col gap-3"
+              className="lightbox-panel w-full max-w-3xl max-h-[92vh] rounded-3xl bg-white border border-slate-200 p-3.5 sm:p-5 shadow-2xl flex flex-col gap-3"
             >
               {/* Cabeçalho do Modal */}
               <div className="flex items-center justify-between gap-3 pb-2.5 border-b border-slate-200 shrink-0">
@@ -737,6 +737,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
               {/* Imagem Principal Maximizada + Controles do Carrossel */}
               <div className="relative flex-1 min-h-0 flex items-center justify-center rounded-2xl overflow-hidden bg-brand-bg border border-slate-200">
                 <img
+                  key={lightboxState.images[lightboxState.activeIndex]}
                   src={lightboxState.images[lightboxState.activeIndex]}
                   alt={`${lightboxState.placeName} - Foto ${lightboxState.activeIndex + 1}`}
                   className="max-h-[60vh] sm:max-h-[66vh] w-full object-contain"

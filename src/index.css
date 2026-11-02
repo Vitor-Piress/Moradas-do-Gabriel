@@ -53,3 +53,249 @@
 .animate-fade-in {
   animation: fadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes revealUp {
+  from {
+    opacity: 0;
+    transform: translateY(34px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes revealLeft {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes revealRight {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.motion-page-enter {
+  animation: pageEnter 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.motion-reveal {
+  --motion-delay: 0ms;
+}
+
+.motion-reveal[data-motion-state="hidden"] {
+  opacity: 0;
+}
+
+.motion-reveal[data-motion-state="visible"] {
+  animation-duration: 0.82s;
+  animation-fill-mode: both;
+  animation-delay: var(--motion-delay);
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.motion-reveal[data-motion-state="visible"][data-motion-direction="up"] {
+  animation-name: revealUp;
+}
+
+.motion-reveal[data-motion-state="visible"][data-motion-direction="left"] {
+  animation-name: revealLeft;
+}
+
+.motion-reveal[data-motion-state="visible"][data-motion-direction="right"] {
+  animation-name: revealRight;
+}
+
+.motion-reveal[data-motion-state="visible"][data-motion-direction="none"] {
+  animation-name: fadeIn;
+}
+
+.motion-card {
+  transition:
+    transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 280ms ease,
+    border-color 220ms ease;
+}
+
+.motion-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 30px -20px rgba(11, 41, 99, 0.45);
+}
+
+.motion-card:active {
+  transform: translateY(-1px) scale(0.995);
+}
+
+.motion-card:focus-visible,
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid rgba(205, 223, 142, 0.95);
+  outline-offset: 3px;
+}
+
+.stagger-reveal > * {
+  animation: revealUp 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.stagger-reveal > *:nth-child(2) {
+  animation-delay: 55ms;
+}
+
+.stagger-reveal > *:nth-child(3) {
+  animation-delay: 110ms;
+}
+
+.stagger-reveal > *:nth-child(4) {
+  animation-delay: 165ms;
+}
+
+.stagger-reveal > *:nth-child(n + 5) {
+  animation-delay: 220ms;
+}
+
+.lightbox-backdrop {
+  animation: fadeIn 220ms ease-out both;
+}
+
+.lightbox-panel {
+  animation: pageEnter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.anchor-highlight {
+  animation: anchorHighlight 1.8s ease-out both;
+}
+
+@keyframes anchorHighlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(205, 223, 142, 0);
+  }
+  25% {
+    box-shadow: 0 0 0 5px rgba(205, 223, 142, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(205, 223, 142, 0);
+  }
+}
+
+.hero-media {
+  animation: heroImageIn 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hero-intro {
+  animation: revealUp 680ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hero-intro-delayed {
+  animation-delay: 100ms;
+}
+
+@keyframes heroImageIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.8;
+  }
+}
+
+.hero-slide-content {
+  animation: heroContentNext 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hero-slide-content[data-direction="previous"] {
+  animation-name: heroContentPrevious;
+}
+
+@keyframes heroContentNext {
+  from {
+    opacity: 0;
+    transform: translateX(20px) translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+
+@keyframes heroContentPrevious {
+  from {
+    opacity: 0;
+    transform: translateX(-20px) translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+
+.landing-scroll-section {
+  animation: revealUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .motion-page-enter,
+  .motion-reveal[data-motion-state="hidden"] {
+    opacity: 1;
+    transform: none;
+  }
+
+  .motion-card:hover,
+  .motion-card:active {
+    transform: none;
+  }
+
+  .hero-media {
+    animation: none;
+    transform: none;
+  }
+
+  .hero-intro,
+  .hero-intro-delayed {
+    animation: none;
+  }
+
+  .hero-slide-content {
+    animation: none;
+  }
+
+  .landing-scroll-section {
+    animation: none;
+  }
+
+  .stagger-reveal > * {
+    animation: none;
+  }
+}

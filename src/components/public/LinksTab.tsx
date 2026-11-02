@@ -95,7 +95,7 @@ export function LinksTab({
       <Link
         to="/"
         onClick={handleSiteClick}
-        className="group flex items-center justify-between gap-3 w-full p-4 rounded-2xl bg-brand-navy text-white border border-brand-navy hover:bg-brand-navy-light transition-colors shadow-xs"
+        className="motion-card group flex items-center justify-between gap-3 w-full p-4 rounded-2xl bg-brand-navy text-white border border-brand-navy hover:bg-brand-navy-light transition-colors shadow-xs"
       >
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="w-10 h-10 rounded-xl bg-white/10 text-white flex items-center justify-center shrink-0">
@@ -127,7 +127,7 @@ export function LinksTab({
 
       {/* Lista Unificada de Links Principais */}
       {!isLoading && (
-        <div className="space-y-2.5">
+        <div className="stagger-reveal space-y-2.5">
           {/* Links ativos cadastrados no banco */}
           {links.map((link) => {
             const IconComponent = resolveLinkIcon(
@@ -143,7 +143,7 @@ export function LinksTab({
                   key={link.id}
                   to={link.url}
                   onClick={() => handleExternalLinkClick(link)}
-                  className="group flex items-center justify-between gap-3 w-full p-4 rounded-2xl bg-white border border-slate-200 text-brand-navy shadow-xs hover:border-brand-navy/35 hover:bg-slate-50 transition-colors"
+                  className="motion-card group flex items-center justify-between gap-3 w-full p-4 rounded-2xl bg-white border border-slate-200 text-brand-navy shadow-xs hover:border-brand-navy/35 hover:bg-slate-50 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="w-10 h-10 rounded-xl bg-brand-bg border border-slate-200 text-brand-navy flex items-center justify-center shrink-0">
@@ -165,7 +165,7 @@ export function LinksTab({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => handleExternalLinkClick(link)}
-                className="group flex items-center justify-between gap-3 w-full p-4 rounded-2xl bg-white border border-slate-200 text-brand-navy shadow-xs hover:border-brand-navy/35 hover:bg-slate-50 transition-colors"
+                className="motion-card group flex items-center justify-between gap-3 w-full p-4 rounded-2xl bg-white border border-slate-200 text-brand-navy shadow-xs hover:border-brand-navy/35 hover:bg-slate-50 transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div className="w-10 h-10 rounded-xl bg-brand-bg border border-slate-200 text-brand-navy flex items-center justify-center shrink-0">
@@ -187,7 +187,7 @@ export function LinksTab({
               target="_blank"
               rel="noopener noreferrer"
               onClick={handleQuickWhatsAppClick}
-              className="group flex items-center justify-between gap-3 w-full p-4 rounded-2xl bg-white border border-slate-200 text-brand-navy shadow-xs hover:border-brand-navy/35 hover:bg-slate-50 transition-colors"
+              className="motion-card group flex items-center justify-between gap-3 w-full p-4 rounded-2xl bg-white border border-slate-200 text-brand-navy shadow-xs hover:border-brand-navy/35 hover:bg-slate-50 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="w-10 h-10 rounded-xl bg-brand-bg border border-slate-200 text-brand-navy flex items-center justify-center shrink-0">
@@ -210,7 +210,7 @@ export function LinksTab({
               target="_blank"
               rel="noopener noreferrer"
               onClick={handleQuickInstagramClick}
-              className="group flex items-center justify-between gap-3 w-full p-4 rounded-2xl bg-white border border-slate-200 text-brand-navy shadow-xs hover:border-brand-navy/35 hover:bg-slate-50 transition-colors"
+              className="motion-card group flex items-center justify-between gap-3 w-full p-4 rounded-2xl bg-white border border-slate-200 text-brand-navy shadow-xs hover:border-brand-navy/35 hover:bg-slate-50 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div className="w-10 h-10 rounded-xl bg-brand-bg border border-slate-200 text-brand-navy flex items-center justify-center shrink-0">
@@ -232,7 +232,7 @@ export function LinksTab({
             target="_blank"
             rel="noopener noreferrer"
             onClick={handleLocationClick}
-            className="group flex items-center justify-between gap-3 w-full p-4 rounded-2xl bg-white border border-slate-200 text-brand-navy shadow-xs hover:border-brand-navy/35 hover:bg-slate-50 transition-colors text-left"
+            className="motion-card group flex items-center justify-between gap-3 w-full p-4 rounded-2xl bg-white border border-slate-200 text-brand-navy shadow-xs hover:border-brand-navy/35 hover:bg-slate-50 transition-colors text-left"
           >
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-xl bg-brand-bg border border-slate-200 text-brand-navy flex items-center justify-center shrink-0">

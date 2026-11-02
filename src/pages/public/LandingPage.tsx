@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { PageTransition, Reveal } from "../../components/public/Motion";
 import type { TypedAccommodation } from "../../@types/database.types";
 import {
   useActiveAccommodations,
@@ -57,12 +58,12 @@ export function LandingPage() {
 
   const metadata = businessInfo?.metadata ?? DEFAULT_BUSINESS_METADATA;
   const landing = metadata.landing ?? DEFAULT_LANDING_METADATA;
-  const slides =
-    landing.hero_slides.length > 0
-      ? landing.hero_slides
-      : DEFAULT_LANDING_METADATA.hero_slides;
+  const slides = businessInfo?.metadata?.landing?.hero_slides ?? [];
 
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<"next" | "previous">(
+    "next",
+  );
   const [isPaused, setIsPaused] = useState(false);
   const [showFloatingHeader, setShowFloatingHeader] = useState(false);
 
@@ -84,6 +85,7 @@ export function LandingPage() {
   useEffect(() => {
     if (isPaused || slides.length <= 1) return;
     const timer = window.setInterval(() => {
+      setSlideDirection("next");
       setActiveSlideIndex((prev) => (prev + 1) % slides.length);
     }, 6000);
     return () => window.clearInterval(timer);
@@ -106,14 +108,17 @@ export function LandingPage() {
   const cleanEmbedUrl = extractEmbedUrl(metadata.location.embed_url || "");
 
   const handlePrevSlide = () => {
+    setSlideDirection("previous");
     setActiveSlideIndex((prev) => (prev - 1 + slides.length) % slides.length);
   };
 
   const handleNextSlide = () => {
+    setSlideDirection("next");
     setActiveSlideIndex((prev) => (prev + 1) % slides.length);
   };
 
   return (
+    <PageTransition>
     <div
       id="inicio"
       className="min-h-screen bg-brand-bg text-brand-navy flex flex-col justify-between"
@@ -186,7 +191,7 @@ export function LandingPage() {
         =================================================================== */}
         <section aria-label="Destaques da Pousada" className="space-y-4">
           {/* Topo Editorial da Hero */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-xs">
+          <div className="hero-intro flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-xs">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-white border border-slate-200 p-1 flex items-center justify-center shrink-0">
                 <img
@@ -235,10 +240,11 @@ export function LandingPage() {
           </div>
 
           {/* Carrossel Principal por Tópicos (Acomodações, Praias, Destinos, Sobre a Pousada) */}
+          {slides.length > 0 && (
           <div
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
-            className="rounded-3xl bg-white border border-slate-200 p-2.5 sm:p-4 shadow-xs space-y-2.5 sm:space-y-3"
+            className="hero-intro hero-intro-delayed rounded-3xl bg-white border border-slate-200 p-2.5 sm:p-4 shadow-xs space-y-2.5 sm:space-y-3"
           >
             {/* Abas de Tópicos do Carrossel */}
             <div className="flex items-center gap-2">
@@ -249,7 +255,10 @@ export function LandingPage() {
                     <button
                       key={slide.id || idx}
                       type="button"
-                      onClick={() => setActiveSlideIndex(idx)}
+                      onClick={() => {
+                        setSlideDirection(idx >= activeSlideIndex ? "next" : "previous");
+                        setActiveSlideIndex(idx);
+                      }}
                       className={`${!isActive ? "hidden sm:inline-flex" : "inline-flex"} shrink-0 whitespace-nowrap px-3.5 py-2 rounded-xl text-xs font-semibold transition-colors ${
                         isActive
                           ? "bg-brand-navy text-white shadow-xs"
@@ -292,12 +301,16 @@ export function LandingPage() {
                     key={currentSlide.image_url}
                     src={currentSlide.image_url}
                     alt={currentSlide.title}
-                    className="absolute inset-0 w-full h-full object-cover opacity-80 transition-all duration-700"
+                    className="hero-media absolute inset-0 w-full h-full object-cover opacity-80"
                   />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-brand-navy/95 via-brand-navy/55 to-brand-navy/15" />
 
-                <div className="relative z-10 w-full p-5 sm:p-10 md:p-12 flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6">
+                <div
+                  key={`${currentSlide.id}-${activeSlideIndex}`}
+                  data-direction={slideDirection}
+                  className="hero-slide-content relative z-10 w-full p-5 sm:p-10 md:p-12 flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6"
+                >
                   <div className="max-w-2xl space-y-2.5 sm:space-y-3">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-xs border border-white/25 text-white text-[11px] font-semibold uppercase tracking-wider">
                       <Waves className="w-3.5 h-3.5 shrink-0" />
@@ -339,16 +352,18 @@ export function LandingPage() {
               </div>
             )}
           </div>
+          )}
         </section>
 
         {/* ===================================================================
             2. SOBRE A POUSADA (BENTO GRID EDITORIAL MODERNO)
         =================================================================== */}
-        <section
-          id="sobre"
-          aria-label="Sobre a Pousada"
-          className="scroll-mt-24 space-y-6"
-        >
+        <Reveal className="space-y-6" direction="up">
+          <section
+            id="sobre"
+            aria-label="Sobre a Pousada"
+            className="scroll-mt-24 space-y-6"
+          >
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
             {/* Coluna Texto Principal */}
             <div className="lg:col-span-7 rounded-3xl bg-white border border-slate-200 p-6 sm:p-9 shadow-xs flex flex-col justify-between space-y-6">
@@ -453,7 +468,8 @@ export function LandingPage() {
               ))}
             </div>
           )}
-        </section>
+          </section>
+        </Reveal>
 
         {/* ===================================================================
             3. PREVIEW DAS ACOMODAÇÕES (Com páginas individuais editáveis)
@@ -501,11 +517,12 @@ export function LandingPage() {
               ))}
             </div>
           ) : accommodations.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {accommodations.map((acc) => (
+            <Reveal className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" direction="up">
+              {accommodations.map((acc, index) => (
                 <article
                   key={acc.id}
-                  className="rounded-3xl bg-white border border-slate-200 overflow-hidden shadow-xs flex flex-col justify-between group hover:border-brand-navy/35 transition-colors"
+                  style={{ animationDelay: `${Math.min(index * 70, 350)}ms` }}
+                  className="motion-card rounded-3xl bg-white border border-slate-200 overflow-hidden shadow-xs flex flex-col justify-between group hover:border-brand-navy/35 transition-colors"
                 >
                   <div>
                     {/* Foto de Capa */}
@@ -619,7 +636,7 @@ export function LandingPage() {
                   </div>
                 </article>
               ))}
-            </div>
+            </Reveal>
           ) : (
             <div className="rounded-2xl bg-white border border-slate-200 p-8 text-center">
               <p className="text-sm text-brand-navy/75">
@@ -858,5 +875,6 @@ export function LandingPage() {
         </div>
       </footer>
     </div>
+    </PageTransition>
   );
 }

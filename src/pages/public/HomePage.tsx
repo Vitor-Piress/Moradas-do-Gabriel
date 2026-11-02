@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { GuestGuideTab } from "../../components/public/GuestGuideTab";
 import { LinksTab } from "../../components/public/LinksTab";
 import { PublicHeader } from "../../components/public/PublicHeader";
+import { PageTransition } from "../../components/public/Motion";
 import { useActiveLinks, useBusinessInfo } from "../../hooks/usePortalData";
 import { DEFAULT_BUSINESS_METADATA, trackPageView } from "../../services";
 
@@ -32,7 +33,10 @@ export function HomePage() {
 
     const sectionId = decodeURIComponent(location.hash.slice(1));
     const scrollDelay = 650;
-    const scrollDuration = 1400;
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    const scrollDuration = prefersReducedMotion ? 1 : 1400;
     let animationFrameId = 0;
 
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -64,6 +68,11 @@ export function HomePage() {
 
         if (progress < 1) {
           animationFrameId = window.requestAnimationFrame(animateScroll);
+        } else {
+          target.classList.remove("anchor-highlight");
+          void target.offsetWidth;
+          target.classList.add("anchor-highlight");
+          window.setTimeout(() => target.classList.remove("anchor-highlight"), 2000);
         }
       };
 
@@ -81,7 +90,7 @@ export function HomePage() {
   }, [activeTab, location.hash]);
 
   return (
-    <div className="min-h-screen bg-brand-bg text-brand-navy flex flex-col justify-between">
+    <PageTransition className="min-h-screen bg-brand-bg text-brand-navy flex flex-col justify-between">
       <div className="w-full max-w-lg mx-auto px-4 pb-10">
         {/* Header Principal */}
         <PublicHeader welcomeMessage={welcomeMessage} />
@@ -116,6 +125,6 @@ export function HomePage() {
           </Link>
         </div>
       </footer>
-    </div>
+    </PageTransition>
   );
 }
