@@ -50,21 +50,23 @@ export function AdminDashboard() {
   return (
     <div className="min-h-screen bg-brand-bg text-brand-navy pb-16">
       {/* Topbar do Painel Admin */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+      <header className="bg-white border-b border-brand-navy/10 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 p-1 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-white border border-brand-navy/10 p-1.5 flex items-center justify-center shrink-0">
               <img
                 src="/logoMoradasdoGabriel.svg"
                 alt="Logo Pousada Moradas do Gabriel"
+                width={32}
+                height={32}
                 className="w-full h-full object-contain"
               />
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-sm sm:text-base font-bold text-brand-navy truncate">
-                Painel Admin • Moradas do Gabriel
+              <h1 className="font-display text-base sm:text-lg font-semibold text-brand-navy tracking-tight truncate">
+                Painel Admin · Moradas do Gabriel
               </h1>
-              <p className="text-xs text-brand-navy/65 truncate">
+              <p className="text-xs font-medium text-brand-ink-muted truncate">
                 {user?.email || "Administrador"}
               </p>
             </div>
@@ -75,7 +77,7 @@ export function AdminDashboard() {
               to="/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-brand-navy text-xs font-semibold transition-colors"
+              className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-xl bg-white border border-brand-navy/12 hover:bg-brand-surface text-brand-navy text-xs font-semibold transition-colors"
             >
               <span>Landing Page</span>
               <ExternalLink className="w-3.5 h-3.5 shrink-0" />
@@ -85,7 +87,7 @@ export function AdminDashboard() {
               to="/links-contato"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-brand-navy text-xs font-semibold transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 min-h-11 px-3 rounded-xl bg-white border border-brand-navy/12 hover:bg-brand-surface text-brand-navy text-xs font-semibold transition-colors"
             >
               <span>Links</span>
               <ExternalLink className="w-3.5 h-3.5 shrink-0" />
@@ -95,7 +97,7 @@ export function AdminDashboard() {
               to="/guia-do-hospede"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-brand-navy text-xs font-semibold transition-colors"
+              className="hidden sm:inline-flex items-center gap-1.5 min-h-11 px-3 rounded-xl bg-white border border-brand-navy/12 hover:bg-brand-surface text-brand-navy text-xs font-semibold transition-colors"
             >
               <span>Guia</span>
               <ExternalLink className="w-3.5 h-3.5 shrink-0" />
@@ -104,7 +106,8 @@ export function AdminDashboard() {
             <button
               type="button"
               onClick={handleSignOut}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 text-brand-navy text-xs font-semibold transition-colors"
+              aria-label="Sair do painel administrativo"
+              className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-xl bg-white border border-brand-navy/12 hover:bg-brand-surface text-brand-navy text-xs font-semibold transition-colors"
             >
               <LogOut className="w-3.5 h-3.5 shrink-0" />
               <span className="hidden sm:inline">Sair</span>
@@ -125,14 +128,14 @@ export function AdminDashboard() {
 
         {/* 2. Seletor de Seção do Admin */}
         <div className="space-y-5">
-          <div className="p-1 rounded-xl bg-white border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-1 w-full shadow-xs">
+          <div className="p-1 rounded-xl bg-white border border-brand-navy/10 grid grid-cols-2 sm:grid-cols-4 gap-1 w-full shadow-xs">
             <button
               type="button"
               onClick={() => setActiveSection("accommodations")}
-              className={`min-w-0 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+              className={`min-w-0 min-h-11 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors ${
                 activeSection === "accommodations"
                   ? "bg-brand-navy text-white"
-                  : "text-brand-navy/75 hover:text-brand-navy hover:bg-brand-bg"
+                  : "text-brand-ink-secondary hover:text-brand-navy hover:bg-brand-bg"
               }`}
             >
               <BedDouble className="w-4 h-4 shrink-0" />
@@ -142,10 +145,10 @@ export function AdminDashboard() {
             <button
               type="button"
               onClick={() => setActiveSection("landing")}
-              className={`min-w-0 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+              className={`min-w-0 min-h-11 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors ${
                 activeSection === "landing"
                   ? "bg-brand-navy text-white"
-                  : "text-brand-navy/75 hover:text-brand-navy hover:bg-brand-bg"
+                  : "text-brand-ink-secondary hover:text-brand-navy hover:bg-brand-bg"
               }`}
             >
               <Globe className="w-4 h-4 shrink-0" />
@@ -155,10 +158,10 @@ export function AdminDashboard() {
             <button
               type="button"
               onClick={() => setActiveSection("links")}
-              className={`min-w-0 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+              className={`min-w-0 min-h-11 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors ${
                 activeSection === "links"
                   ? "bg-brand-navy text-white"
-                  : "text-brand-navy/75 hover:text-brand-navy hover:bg-brand-bg"
+                  : "text-brand-ink-secondary hover:text-brand-navy hover:bg-brand-bg"
               }`}
             >
               <Link2 className="w-4 h-4 shrink-0" />
@@ -168,10 +171,10 @@ export function AdminDashboard() {
             <button
               type="button"
               onClick={() => setActiveSection("guide")}
-              className={`min-w-0 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+              className={`min-w-0 min-h-11 py-2.5 px-3 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors ${
                 activeSection === "guide"
                   ? "bg-brand-navy text-white"
-                  : "text-brand-navy/75 hover:text-brand-navy hover:bg-brand-bg"
+                  : "text-brand-ink-secondary hover:text-brand-navy hover:bg-brand-bg"
               }`}
             >
               <Compass className="w-4 h-4 shrink-0" />
@@ -186,9 +189,9 @@ export function AdminDashboard() {
             />
           ) : activeSection === "landing" ? (
             isLoadingBusiness ? (
-              <div className="rounded-2xl bg-white border border-slate-200 p-12 flex flex-col items-center justify-center text-brand-navy shadow-xs">
+              <div className="rounded-2xl bg-white border border-brand-navy/10 p-12 flex flex-col items-center justify-center text-brand-navy shadow-xs">
                 <Loader2 className="w-6 h-6 animate-spin mb-2" />
-                <p className="text-sm font-medium text-brand-navy/75">
+                <p className="text-sm font-medium text-brand-ink-secondary">
                   Carregando dados da Landing Page...
                 </p>
               </div>
@@ -205,9 +208,9 @@ export function AdminDashboard() {
               clicksByLinkId={analytics?.clicksByLinkId ?? {}}
             />
           ) : isLoadingBusiness ? (
-            <div className="rounded-2xl bg-white border border-slate-200 p-12 flex flex-col items-center justify-center text-brand-navy shadow-xs">
+            <div className="rounded-2xl bg-white border border-brand-navy/10 p-12 flex flex-col items-center justify-center text-brand-navy shadow-xs">
               <Loader2 className="w-6 h-6 animate-spin mb-2" />
-              <p className="text-sm font-medium text-brand-navy/75">
+              <p className="text-sm font-medium text-brand-ink-secondary">
                 Carregando dados do Guia do Hóspede...
               </p>
             </div>

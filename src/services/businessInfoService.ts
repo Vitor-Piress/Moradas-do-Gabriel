@@ -132,7 +132,7 @@ export const DEFAULT_BUSINESS_METADATA: BusinessInfoMetadata = {
       description:
         "Na Pousada Moradas do Gabriel, unimos a simplicidade charmosa do litoral com o conforto que transforma cada estadia em boas memórias. Nosso espaço foi projetado para receber casais, famílias e viajantes que valorizam ambientes limpos, arejados e um atendimento sempre prestativo.",
       secondary_description:
-        "Com localização estratégica próxima às praias e comércios locais, oferecemos acomodações versáteis — desde suítes aconchegantes até apartamentos equipados com cozinha — para que você aproveite seus dias com total liberdade e sossego.",
+        "Com localização estratégica próxima às praias e comércios locais, oferecemos acomodações versáteis, desde suítes aconchegantes até apartamentos equipados com cozinha, para que você aproveite seus dias com total liberdade e sossego.",
       image_url:
         "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=1200&q=80",
       highlights: [
@@ -314,7 +314,7 @@ export function normalizeBusinessMetadata(
             cta_label:
               typeof item.cta_label === "string" && item.cta_label.trim()
                 ? item.cta_label.trim()
-                : "Saiba Mais",
+                : "Ver acomodações",
             cta_href:
               typeof item.cta_href === "string" && item.cta_href.trim()
                 ? sanitizeHttpUrl(item.cta_href.trim(), {
