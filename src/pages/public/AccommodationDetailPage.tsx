@@ -4,7 +4,7 @@ import {
   BedDouble,
   Check,
   Dog,
-  Loader2,
+  RefreshCw,
   Refrigerator,
   Snowflake,
   Sparkles,
@@ -15,26 +15,33 @@ import {
   Wifi,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { AnimatePresence, m } from "motion/react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { BrandLoader } from "../../components/public/BrandLoader";
+import { PageTransition } from "../../components/public/Motion";
+import { SmoothImage } from "../../components/public/SmoothImage";
 import {
   useAccommodationBySlug,
   useBusinessInfo,
 } from "../../hooks/usePortalData";
-import {
-  DEFAULT_BUSINESS_METADATA,
-  trackLinkClick,
-  trackPageView,
-} from "../../services";
+import { trackLinkClick, trackPageView } from "../../services";
 import { formatWhatsAppUrl } from "../../utils/embedUrl";
 import { WhatsAppIcon } from "../../utils/iconMapper";
+import { preloadImageUrl } from "../../utils/imagePreload";
+
+const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 export function AccommodationDetailPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { data: accommodation, isLoading } = useAccommodationBySlug(slug);
+  const {
+    data: accommodation,
+    isLoading,
+    isError,
+    refetch,
+  } = useAccommodationBySlug(slug);
   const { data: businessInfo } = useBusinessInfo();
 
-  const metadata = businessInfo?.metadata ?? DEFAULT_BUSINESS_METADATA;
   const [selectedImage, setSelectedImage] = useState<string>("");
 
   useEffect(() => {
@@ -44,14 +51,55 @@ export function AccommodationDetailPage() {
     }
   }, [slug]);
 
-  if (isLoading) {
+  const galleryPhotos = useMemo(
+    () =>
+      accommodation
+        ? Array.from(
+            new Set(
+              [accommodation.cover_image, ...accommodation.gallery].filter(
+                Boolean,
+              ),
+            ),
+          )
+        : [],
+    [accommodation],
+  );
+
+  // Pré-carrega as demais fotos da galeria em segundo plano
+  useEffect(() => {
+    if (galleryPhotos.length <= 1) return;
+    galleryPhotos.slice(1).forEach((photoUrl) => {
+      void preloadImageUrl(photoUrl);
+    });
+  }, [galleryPhotos]);
+
+  if (isError && !accommodation) {
     return (
-      <div className="min-h-screen bg-brand-bg text-brand-navy flex flex-col items-center justify-center p-6">
-        <Loader2 className="w-7 h-7 animate-spin mb-2" />
-        <p className="text-sm font-medium text-brand-navy/75">
-          Carregando detalhes da acomodação...
-        </p>
+      <div className="min-h-screen bg-brand-bg text-brand-navy flex flex-col items-center justify-center p-6 text-center space-y-4">
+        <div className="rounded-3xl bg-white border border-slate-200 p-8 max-w-md space-y-4 shadow-xs">
+          <BedDouble className="w-10 h-10 mx-auto text-brand-navy" />
+          <h1 className="text-xl font-bold text-brand-navy">
+            Não foi possível carregar a acomodação
+          </h1>
+          <p className="text-sm text-brand-navy/75">
+            Verifique sua conexão e tente novamente em alguns instantes.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-brand-navy text-white text-xs sm:text-sm font-semibold hover:bg-brand-navy-light transition-colors"
+          >
+            <RefreshCw className="w-4 h-4 shrink-0" />
+            <span>Tentar novamente</span>
+          </button>
+        </div>
       </div>
+    );
+  }
+
+  if (isLoading && !accommodation) {
+    return (
+      <BrandLoader show message="Carregando detalhes da acomodação..." />
     );
   }
 
@@ -79,16 +127,12 @@ export function AccommodationDetailPage() {
     );
   }
 
-  const allPhotos = Array.from(
-    new Set(
-      [accommodation.cover_image, ...accommodation.gallery].filter(Boolean),
-    ),
-  );
-  const activePhoto = selectedImage || allPhotos[0] || "";
+  const activePhoto = selectedImage || galleryPhotos[0] || "";
+  const whatsappContact = businessInfo?.metadata.contacts.whatsapp ?? "";
 
   const whatsappBookingUrl =
     formatWhatsAppUrl(
-      metadata.contacts.whatsapp,
+      whatsappContact,
       `Olá! Estou no site da Pousada Moradas do Gabriel e gostaria de consultar disponibilidade e valores da acomodação "${accommodation.title}".`,
     ) || "https://wa.me/";
 
@@ -166,7 +210,7 @@ export function AccommodationDetailPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-brand-bg text-brand-navy flex flex-col justify-between">
+    <PageTransition className="min-h-screen bg-brand-bg text-brand-navy flex flex-col justify-between">
       <div className="w-full max-w-5xl mx-auto px-4 pt-6 pb-16 space-y-6">
         {/* Topo de Navegação */}
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -196,11 +240,29 @@ export function AccommodationDetailPage() {
         <section className="rounded-3xl bg-white border border-slate-200 p-3 sm:p-5 shadow-xs space-y-3">
           <div className="relative h-72 sm:h-[420px] rounded-2xl overflow-hidden bg-brand-bg">
             {activePhoto ? (
-              <img
-                src={activePhoto}
-                alt={accommodation.title}
-                className="w-full h-full object-cover"
-              />
+              <AnimatePresence mode="wait" initial={false}>
+                <m.div
+                  key={activePhoto}
+                  initial={{ opacity: 0.35 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0.35 }}
+                  transition={{ duration: 0.28, ease: EASE_OUT_EXPO }}
+                  className="w-full h-full"
+                >
+                  <SmoothImage
+                    src={activePhoto}
+                    alt={accommodation.title}
+                    priority
+                    containerClassName="relative w-full h-full overflow-hidden"
+                    className="w-full h-full object-cover"
+                    fallback={
+                      <div className="w-full h-full flex items-center justify-center text-brand-navy/40">
+                        <BedDouble className="w-12 h-12" />
+                      </div>
+                    }
+                  />
+                </m.div>
+              </AnimatePresence>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-brand-navy/40">
                 <BedDouble className="w-12 h-12" />
@@ -216,9 +278,9 @@ export function AccommodationDetailPage() {
             </div>
           </div>
 
-          {allPhotos.length > 1 && (
+          {galleryPhotos.length > 1 && (
             <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
-              {allPhotos.map((photoUrl, idx) => {
+              {galleryPhotos.map((photoUrl, idx) => {
                 const isSelected = photoUrl === activePhoto;
                 return (
                   <button
@@ -231,9 +293,10 @@ export function AccommodationDetailPage() {
                         : "border-transparent opacity-70 hover:opacity-100"
                     }`}
                   >
-                    <img
+                    <SmoothImage
                       src={photoUrl}
                       alt={`${accommodation.title} - foto ${idx + 1}`}
+                      containerClassName="relative w-full h-full overflow-hidden"
                       className="w-full h-full object-cover"
                     />
                   </button>
@@ -440,6 +503,6 @@ export function AccommodationDetailPage() {
         © {new Date().getFullYear()} Pousada Moradas do Gabriel. Todos os
         direitos reservados.
       </footer>
-    </div>
+    </PageTransition>
   );
 }

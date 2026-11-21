@@ -166,11 +166,11 @@ export async function getActiveAccommodations(): Promise<TypedAccommodation[]> {
     .order("created_at", { ascending: true });
 
   if (error) {
-    console.warn(
-      "[accommodationsService] Usando dados padrão de acomodações (verifique se a migration já foi aplicada):",
+    console.error(
+      "[accommodationsService] Erro ao buscar acomodações ativas:",
       error.message,
     );
-    return structuredClone(DEFAULT_ACCOMMODATIONS);
+    throw error;
   }
 
   if (!data || data.length === 0) {
@@ -188,11 +188,11 @@ export async function getAllAccommodations(): Promise<TypedAccommodation[]> {
     .order("created_at", { ascending: true });
 
   if (error) {
-    console.warn(
+    console.error(
       "[accommodationsService] Erro ao listar todas as acomodações:",
       error.message,
     );
-    return structuredClone(DEFAULT_ACCOMMODATIONS);
+    throw error;
   }
 
   return (data ?? []).map(normalizeAccommodationRow);
@@ -208,13 +208,15 @@ export async function getAccommodationBySlug(
     .maybeSingle();
 
   if (error) {
-    const fallback = DEFAULT_ACCOMMODATIONS.find((a) => a.slug === slug);
-    return fallback ? structuredClone(fallback) : null;
+    console.error(
+      "[accommodationsService] Erro ao buscar acomodação por slug:",
+      error.message,
+    );
+    throw error;
   }
 
   if (!data) {
-    const fallback = DEFAULT_ACCOMMODATIONS.find((a) => a.slug === slug);
-    return fallback ? structuredClone(fallback) : null;
+    return null;
   }
 
   return normalizeAccommodationRow(data);

@@ -18,6 +18,7 @@ import {
   Wifi,
   X,
 } from "lucide-react";
+import { AnimatePresence, m } from "motion/react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type {
@@ -28,6 +29,8 @@ import type {
 import { trackGuideInteraction } from "../../services";
 import { extractEmbedUrl } from "../../utils/embedUrl";
 import { WazeIcon } from "../../utils/iconMapper";
+import { SmoothImage } from "./SmoothImage";
+import { SmoothMapEmbed } from "./SmoothMapEmbed";
 
 interface GuestGuideTabProps {
   metadata: BusinessInfoMetadata;
@@ -269,16 +272,12 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
 
         {/* Google Maps Embed (quando location.embed_url estiver preenchido) */}
         {cleanEmbedUrl && (
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-brand-bg">
-            <iframe
-              src={cleanEmbedUrl}
-              title="Mapa de Localização - Pousada Moradas do Gabriel"
-              className="w-full h-56 sm:h-64 border-0"
-              loading="lazy"
-              allowFullScreen
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-          </div>
+          <SmoothMapEmbed
+            src={cleanEmbedUrl}
+            title="Mapa de Localização - Pousada Moradas do Gabriel"
+            containerClassName="overflow-hidden rounded-xl border border-slate-200 bg-brand-bg h-56 sm:h-64"
+            loadingLabel="Carregando mapa da pousada..."
+          />
         )}
 
         {/* Botões de ação rápida responsivos: Google Maps e Waze */}
@@ -503,7 +502,7 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
           </div>
         </div>
 
-        {/* Filtro por Categoria com Flex-Wrap (100% visível em telas pequenas) */}
+        {/* Filtro por Categoria com Pílula Deslizante */}
         <div className="flex flex-wrap items-center gap-1.5">
           {categories.map((cat) => {
             const isActive = selectedCategory === cat;
@@ -512,13 +511,20 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
                 key={cat}
                 type="button"
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 ${
+                className={`relative px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors duration-200 ${
                   isActive
-                    ? "bg-brand-navy text-white"
+                    ? "text-white"
                     : "bg-brand-bg text-brand-navy/80 border border-slate-200 hover:bg-slate-100"
                 }`}
               >
-                {cat}
+                {isActive && (
+                  <m.span
+                    layoutId="guide-category-pill"
+                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                    className="absolute inset-0 rounded-lg bg-brand-navy"
+                  />
+                )}
+                <span className="relative z-10">{cat}</span>
               </button>
             );
           })}
@@ -575,20 +581,22 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
                     >
                       {placeImages.length > 0 && (
                         <div className="relative group overflow-hidden rounded-xl border border-slate-200 bg-white h-48 sm:h-52">
-                          <img
-                            src={placeImages[activeImgIdx]}
-                            alt={`${place.name} - Foto ${activeImgIdx + 1}`}
-                            onClick={() =>
-                              handleOpenLightbox(
-                                place.name,
-                                place.category,
-                                placeImages,
-                                activeImgIdx,
-                              )
-                            }
-                            className="w-full h-full object-cover cursor-zoom-in transition-transform duration-300 group-hover:scale-[1.02]"
-                            loading="lazy"
-                          />
+                          <div className="w-full h-full transition-transform duration-300 group-hover:scale-[1.02]">
+                            <SmoothImage
+                              src={placeImages[activeImgIdx]}
+                              alt={`${place.name} - Foto ${activeImgIdx + 1}`}
+                              onClick={() =>
+                                handleOpenLightbox(
+                                  place.name,
+                                  place.category,
+                                  placeImages,
+                                  activeImgIdx,
+                                )
+                              }
+                              containerClassName="relative w-full h-full overflow-hidden"
+                              className="w-full h-full object-cover cursor-zoom-in"
+                            />
+                          </div>
 
                           {/* Botão de Maximizar Fotos */}
                           <button
@@ -650,16 +658,12 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
                       )}
 
                       {placeEmbedUrl && (
-                        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white h-48 sm:h-52">
-                          <iframe
-                            src={placeEmbedUrl}
-                            title={`Mapa de Localização - ${place.name}`}
-                            className="w-full h-full border-0"
-                            loading="lazy"
-                            allowFullScreen
-                            referrerPolicy="no-referrer-when-downgrade"
-                          />
-                        </div>
+                        <SmoothMapEmbed
+                          src={placeEmbedUrl}
+                          title={`Mapa de Localização - ${place.name}`}
+                          containerClassName="overflow-hidden rounded-xl border border-slate-200 bg-white h-48 sm:h-52"
+                          loadingLabel={`Carregando mapa de ${place.name}...`}
+                        />
                       )}
                     </div>
                   )}
@@ -693,19 +697,29 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
       </section>
 
       {/* Modal Lightbox (Portal no document.body para ocupar a tela inteira sem interferência de transform) */}
-      {lightboxState &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Galeria de fotos - ${lightboxState.placeName}`}
-            onClick={() => setLightboxState(null)}
-            className="lightbox-backdrop fixed inset-0 z-[100] bg-brand-navy/80 backdrop-blur-xs p-3 sm:p-6 flex items-center justify-center"
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="lightbox-panel w-full max-w-3xl max-h-[92vh] rounded-3xl bg-white border border-slate-200 p-3.5 sm:p-5 shadow-2xl flex flex-col gap-3"
+      {createPortal(
+        <AnimatePresence>
+          {lightboxState && (
+            <m.div
+              key="guide-lightbox-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.22 }}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Galeria de fotos - ${lightboxState.placeName}`}
+              onClick={() => setLightboxState(null)}
+              className="fixed inset-0 z-[100] bg-brand-navy/80 backdrop-blur-xs p-3 sm:p-6 flex items-center justify-center"
             >
+              <m.div
+                initial={{ opacity: 0, scale: 0.96, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.97, y: 8 }}
+                transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-3xl max-h-[92vh] rounded-3xl bg-white border border-slate-200 p-3.5 sm:p-5 shadow-2xl flex flex-col gap-3"
+              >
               {/* Cabeçalho do Modal */}
               <div className="flex items-center justify-between gap-3 pb-2.5 border-b border-slate-200 shrink-0">
                 <div className="min-w-0">
@@ -736,10 +750,12 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
 
               {/* Imagem Principal Maximizada + Controles do Carrossel */}
               <div className="relative flex-1 min-h-0 flex items-center justify-center rounded-2xl overflow-hidden bg-brand-bg border border-slate-200">
-                <img
+                <SmoothImage
                   key={lightboxState.images[lightboxState.activeIndex]}
                   src={lightboxState.images[lightboxState.activeIndex]}
                   alt={`${lightboxState.placeName} - Foto ${lightboxState.activeIndex + 1}`}
+                  priority
+                  containerClassName="relative w-full flex items-center justify-center overflow-hidden"
                   className="max-h-[60vh] sm:max-h-[66vh] w-full object-contain"
                 />
 
@@ -817,10 +833,12 @@ export function GuestGuideTab({ metadata }: GuestGuideTabProps) {
                   })}
                 </div>
               )}
-            </div>
-          </div>,
-          document.body,
-        )}
+            </m.div>
+          </m.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   );
 }

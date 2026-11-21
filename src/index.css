@@ -253,6 +253,49 @@ button:focus-visible {
   animation: revealUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+@keyframes mediaShimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.media-shimmer-light,
+.media-shimmer-dark {
+  position: relative;
+  overflow: hidden;
+}
+
+.media-shimmer-light::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.72) 50%,
+    transparent 100%
+  );
+  animation: mediaShimmer 1.65s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.media-shimmer-dark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    transparent 100%
+  );
+  animation: mediaShimmer 1.85s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -297,5 +340,11 @@ button:focus-visible {
 
   .stagger-reveal > * {
     animation: none;
+  }
+
+  .media-shimmer-light::after,
+  .media-shimmer-dark::after {
+    animation: none;
+    display: none;
   }
 }

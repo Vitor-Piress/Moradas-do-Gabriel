@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { LinkInsert, LinkUpdate } from "../@types/database.types";
+import type {
+  LinkInsert,
+  LinkUpdate,
+  TypedAccommodation,
+  TypedBusinessInfo,
+} from "../@types/database.types";
 import {
   createAccommodation,
   createLink,
@@ -19,6 +24,12 @@ import {
   type SaveAccommodationPayload,
   type SaveBusinessInfoInput,
 } from "../services";
+import {
+  clearPublicCache,
+  PUBLIC_CACHE_KEYS,
+  readPublicCache,
+  writePublicCache,
+} from "../utils/publicCache";
 
 export const QUERY_KEYS = {
   activeLinks: ["links", "active"] as const,
@@ -32,7 +43,15 @@ export const QUERY_KEYS = {
 export function useActiveAccommodations() {
   return useQuery({
     queryKey: QUERY_KEYS.activeAccommodations,
-    queryFn: getActiveAccommodations,
+    queryFn: async () => {
+      const data = await getActiveAccommodations();
+      writePublicCache(PUBLIC_CACHE_KEYS.accommodations, data);
+      return data;
+    },
+    initialData: () =>
+      readPublicCache<TypedAccommodation[]>(PUBLIC_CACHE_KEYS.accommodations)
+        ?.data,
+    initialDataUpdatedAt: () => 0,
     staleTime: 1000 * 60 * 2,
   });
 }
@@ -48,6 +67,13 @@ export function useAccommodationBySlug(slug: string | undefined) {
   return useQuery({
     queryKey: ["accommodations", "slug", slug] as const,
     queryFn: () => (slug ? getAccommodationBySlug(slug) : Promise.resolve(null)),
+    initialData: () => {
+      if (!slug) return undefined;
+      return readPublicCache<TypedAccommodation[]>(
+        PUBLIC_CACHE_KEYS.accommodations,
+      )?.data?.find((item) => item.slug === slug);
+    },
+    initialDataUpdatedAt: () => 0,
     enabled: Boolean(slug),
     staleTime: 1000 * 60 * 2,
   });
@@ -57,6 +83,7 @@ export function useAccommodationMutations() {
   const queryClient = useQueryClient();
 
   const invalidateAccommodations = () => {
+    clearPublicCache(PUBLIC_CACHE_KEYS.accommodations);
     queryClient.invalidateQueries({ queryKey: ["accommodations"] });
   };
 
@@ -107,7 +134,16 @@ export function useAllLinks() {
 export function useBusinessInfo() {
   return useQuery({
     queryKey: QUERY_KEYS.businessInfo,
-    queryFn: getBusinessInfo,
+    queryFn: async () => {
+      const data = await getBusinessInfo();
+      if (data.id) {
+        writePublicCache(PUBLIC_CACHE_KEYS.businessInfo, data);
+      }
+      return data;
+    },
+    initialData: () =>
+      readPublicCache<TypedBusinessInfo>(PUBLIC_CACHE_KEYS.businessInfo)?.data,
+    initialDataUpdatedAt: () => 0,
     staleTime: 1000 * 60 * 2,
   });
 }
@@ -161,7 +197,11 @@ export function useSaveBusinessInfo() {
 
   return useMutation({
     mutationFn: (input: SaveBusinessInfoInput) => saveBusinessInfo(input),
-    onSuccess: () => {
+    onSuccess: (saved) => {
+      if (saved?.id) {
+        writePublicCache(PUBLIC_CACHE_KEYS.businessInfo, saved);
+        queryClient.setQueryData(QUERY_KEYS.businessInfo, saved);
+      }
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.businessInfo });
     },
   });

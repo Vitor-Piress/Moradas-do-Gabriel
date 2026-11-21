@@ -336,7 +336,9 @@ export function normalizeBusinessMetadata(
               typeof item.description === "string" ? item.description : "",
           }))
           .filter((item) => item.title.trim() !== "")
-      : structuredClone(DEFAULT_LANDING_METADATA.about.highlights);
+      : [];
+
+  const hasSavedLandingAbout = isRecord(rawLanding.about);
 
   const landing: LandingPageMetadata = {
     hero_slides,
@@ -344,24 +346,31 @@ export function normalizeBusinessMetadata(
       badge:
         typeof rawAbout.badge === "string" && rawAbout.badge.trim()
           ? rawAbout.badge
-          : DEFAULT_LANDING_METADATA.about.badge,
+          : hasSavedLandingAbout
+            ? ""
+            : DEFAULT_LANDING_METADATA.about.badge,
       title:
         typeof rawAbout.title === "string" && rawAbout.title.trim()
           ? rawAbout.title
-          : DEFAULT_LANDING_METADATA.about.title,
+          : hasSavedLandingAbout
+            ? ""
+            : DEFAULT_LANDING_METADATA.about.title,
       description:
         typeof rawAbout.description === "string" && rawAbout.description.trim()
           ? rawAbout.description
-          : DEFAULT_LANDING_METADATA.about.description,
+          : hasSavedLandingAbout
+            ? ""
+            : DEFAULT_LANDING_METADATA.about.description,
       secondary_description:
         typeof rawAbout.secondary_description === "string"
           ? rawAbout.secondary_description
-          : DEFAULT_LANDING_METADATA.about.secondary_description,
+          : hasSavedLandingAbout
+            ? ""
+            : DEFAULT_LANDING_METADATA.about.secondary_description,
       image_url:
         typeof rawAbout.image_url === "string" && rawAbout.image_url.trim()
-          ? sanitizeHttpUrl(rawAbout.image_url, { allowRelative: false }) ||
-            DEFAULT_LANDING_METADATA.about.image_url
-          : DEFAULT_LANDING_METADATA.about.image_url,
+          ? sanitizeHttpUrl(rawAbout.image_url, { allowRelative: false })
+          : "",
       highlights: aboutHighlights,
     },
     footer: {
