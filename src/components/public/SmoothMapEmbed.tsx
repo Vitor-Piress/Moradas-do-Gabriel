@@ -11,7 +11,7 @@ interface SmoothMapEmbedProps {
   loadingLabel?: string;
 }
 
-const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 export function SmoothMapEmbed({
   src,
@@ -75,7 +75,7 @@ export function SmoothMapEmbed({
           onLoad={() => setLoadedSrc(src)}
           initial={{ opacity: 0 }}
           animate={{ opacity: isLoaded ? 1 : 0 }}
-          transition={{ duration: 0.48, ease: EASE_OUT }}
+          transition={{ duration: 0.48, ease: EASE_OUT_EXPO }}
           className={iframeClassName}
         />
       )}
@@ -86,7 +86,7 @@ export function SmoothMapEmbed({
             key="map-placeholder"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.36, ease: EASE_OUT }}
+            transition={{ duration: 0.36, ease: EASE_OUT_EXPO }}
             aria-hidden="true"
             className="absolute inset-0 z-10 pointer-events-none bg-brand-surface media-shimmer-light flex items-center justify-center p-4"
           >

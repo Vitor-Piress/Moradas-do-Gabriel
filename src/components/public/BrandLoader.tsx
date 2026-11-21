@@ -5,7 +5,7 @@ interface BrandLoaderProps {
   message?: string;
 }
 
-const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 export function BrandLoader({
   show,
@@ -19,7 +19,7 @@ export function BrandLoader({
           initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.34, ease: EASE_OUT }}
+          transition={{ duration: 0.34, ease: EASE_OUT_EXPO }}
           role="status"
           aria-live="polite"
           aria-label={message}
@@ -29,7 +29,7 @@ export function BrandLoader({
             <m.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.38, ease: EASE_OUT }}
+              transition={{ duration: 0.38, ease: EASE_OUT_EXPO }}
               className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white border border-brand-navy/10 p-2.5 flex items-center justify-center"
             >
               <img
@@ -47,10 +47,10 @@ export function BrandLoader({
             <m.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.38, delay: 0.06, ease: EASE_OUT }}
+              transition={{ duration: 0.38, delay: 0.06, ease: EASE_OUT_EXPO }}
               className="mt-5 space-y-1.5"
             >
-              <p className="font-display text-lg sm:text-xl font-medium tracking-tight text-brand-navy">
+              <p className="font-display text-lg sm:text-xl font-semibold tracking-tight text-brand-navy">
                 Pousada Moradas do Gabriel
               </p>
               <p className="text-xs font-medium text-brand-ink-muted">
@@ -68,7 +68,7 @@ export function BrandLoader({
                 transition={{
                   duration: 1.15,
                   repeat: Infinity,
-                  ease: [0.22, 1, 0.36, 1],
+                  ease: EASE_OUT_EXPO,
                 }}
                 className="w-1/2 h-full bg-brand-navy"
               />

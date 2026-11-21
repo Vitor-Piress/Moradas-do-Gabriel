@@ -15,7 +15,7 @@ interface SmoothImageProps {
   onReady?: () => void;
 }
 
-const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 export function SmoothImage({
   src,
@@ -97,7 +97,7 @@ export function SmoothImage({
         }
         transition={{
           duration: alreadyPreloaded ? 0.16 : 0.48,
-          ease: EASE_OUT,
+          ease: EASE_OUT_EXPO,
         }}
         className={className}
       />
