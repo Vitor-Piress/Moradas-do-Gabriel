@@ -33,3 +33,6 @@ dist-ssr
 
 # Supabase CLI temp files
 supabase/.temp/
+
+# Skills locais de agentes (evita versionar skills de terceiros no repositório proprietário)
+.agents/

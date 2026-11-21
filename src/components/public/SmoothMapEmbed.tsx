@@ -11,18 +11,12 @@ interface SmoothMapEmbedProps {
   loadingLabel?: string;
 }
 
-const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
+const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
-/**
- * Incorpora iframes do Google Maps com:
- * 1) Pré-montagem antecipada (`rootMargin: 500px`) antes de o visitante chegar à seção;
- * 2) Placeholder cartográfico refinado com shimmer enquanto tiles/scripts carregam;
- * 3) Crossfade suave no `onLoad` (com teto de segurança de 4,5s para não travar em redes restritas).
- */
 export function SmoothMapEmbed({
   src,
   title,
-  containerClassName = "overflow-hidden rounded-2xl border border-slate-200 bg-brand-bg h-72 sm:h-96",
+  containerClassName = "overflow-hidden rounded-2xl border border-brand-navy/10 bg-brand-surface h-72 sm:h-96",
   iframeClassName = "w-full h-full border-0",
   eager = false,
   loadingLabel = "Carregando mapa interativo...",
@@ -37,6 +31,7 @@ export function SmoothMapEmbed({
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const isLoaded = Boolean(src) && loadedSrc === src;
 
+  // Pré-monta o iframe 500px antes de entrar no viewport para reduzir atraso percebido
   useEffect(() => {
     if (shouldMount) return;
     const node = containerRef.current;
@@ -56,7 +51,7 @@ export function SmoothMapEmbed({
     return () => observer.disconnect();
   }, [shouldMount]);
 
-  // Fallback de segurança caso o provedor terceirizado atrase ou suprima onLoad
+  // Garante liberação do placeholder caso o embed terceirizado atrase ou suprima onLoad
   useEffect(() => {
     if (!shouldMount || !src || isLoaded) return;
     const timer = window.setTimeout(() => {
@@ -78,76 +73,32 @@ export function SmoothMapEmbed({
           allowFullScreen
           referrerPolicy="no-referrer-when-downgrade"
           onLoad={() => setLoadedSrc(src)}
-          initial={{ opacity: 0, scale: 1.01 }}
-          animate={{
-            opacity: isLoaded ? 1 : 0,
-            scale: isLoaded ? 1 : 1.01,
-          }}
-          transition={{ duration: 0.62, ease: EASE_OUT_EXPO }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isLoaded ? 1 : 0 }}
+          transition={{ duration: 0.48, ease: EASE_OUT }}
           className={iframeClassName}
         />
       )}
 
-      {/* Placeholder Cartográfico Sutil enquanto o Google Maps carrega */}
       <AnimatePresence>
         {!isLoaded && (
           <m.div
             key="map-placeholder"
             initial={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: 0.99 }}
-            transition={{ duration: 0.42, ease: EASE_OUT_EXPO }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.36, ease: EASE_OUT }}
             aria-hidden="true"
-            className="absolute inset-0 z-10 pointer-events-none bg-[#F3F5F8] media-shimmer-light flex items-center justify-center p-4"
+            className="absolute inset-0 z-10 pointer-events-none bg-brand-surface media-shimmer-light flex items-center justify-center p-4"
           >
-            {/* Malha cartográfica sutil em SVG */}
-            <svg
-              className="absolute inset-0 w-full h-full opacity-45 text-brand-navy/10"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <defs>
-                <pattern
-                  id="map-grid-pattern"
-                  width="56"
-                  height="56"
-                  patternUnits="userSpaceOnUse"
-                >
-                  <path
-                    d="M 56 0 L 0 0 0 56"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1"
-                  />
-                  <path
-                    d="M 0 28 L 56 28 M 28 0 L 28 56"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="0.5"
-                    strokeDasharray="3 3"
-                  />
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#map-grid-pattern)" />
-            </svg>
-
-            {/* Selo central elegante */}
-            <div className="relative flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/95 backdrop-blur-xs border border-slate-200 shadow-xs">
-              <div className="relative w-9 h-9 rounded-xl bg-brand-bg border border-slate-200 text-brand-navy flex items-center justify-center shrink-0">
-                <m.span
-                  animate={{ scale: [1, 1.35, 1], opacity: [0.45, 0, 0.45] }}
-                  transition={{
-                    duration: 1.8,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                  className="absolute inset-0 rounded-xl bg-brand-aqua/60"
-                />
-                <MapPin className="relative w-4 h-4" />
+            <div className="relative flex items-center gap-3 px-4 py-3 rounded-xl bg-white border border-brand-navy/10 shadow-xs">
+              <div className="w-9 h-9 rounded-lg bg-brand-surface border border-brand-navy/10 text-brand-navy flex items-center justify-center shrink-0">
+                <MapPin className="w-4 h-4" />
               </div>
               <div className="text-left min-w-0">
-                <p className="text-xs font-bold text-brand-navy truncate">
+                <p className="text-xs font-semibold text-brand-navy truncate">
                   {loadingLabel}
                 </p>
-                <p className="text-[10px] font-medium text-brand-navy/60">
+                <p className="text-[11px] font-medium text-brand-ink-muted">
                   Google Maps
                 </p>
               </div>

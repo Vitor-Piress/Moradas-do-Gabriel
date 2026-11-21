@@ -15,7 +15,7 @@ interface SmoothImageProps {
   onReady?: () => void;
 }
 
-const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
+const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 export function SmoothImage({
   src,
@@ -55,10 +55,9 @@ export function SmoothImage({
   return (
     <div
       className={`${containerClassName} ${
-        theme === "dark" ? "bg-brand-navy" : "bg-brand-bg"
+        theme === "dark" ? "bg-brand-scrim" : "bg-brand-surface"
       }`}
     >
-      {/* Shimmer suave enquanto os bytes da imagem do R2/CDN ainda estão sendo baixados */}
       {!isLoaded && (
         <div
           aria-hidden="true"
@@ -89,16 +88,16 @@ export function SmoothImage({
         initial={
           alreadyPreloaded
             ? { opacity: targetOpacity, scale: 1 }
-            : { opacity: 0, scale: 1.022 }
+            : { opacity: 0, scale: 1.018 }
         }
         animate={
           isLoaded
             ? { opacity: targetOpacity, scale: 1 }
-            : { opacity: 0, scale: 1.022 }
+            : { opacity: 0, scale: 1.018 }
         }
         transition={{
-          duration: alreadyPreloaded ? 0.16 : 0.56,
-          ease: EASE_OUT_EXPO,
+          duration: alreadyPreloaded ? 0.16 : 0.48,
+          ease: EASE_OUT,
         }}
         className={className}
       />

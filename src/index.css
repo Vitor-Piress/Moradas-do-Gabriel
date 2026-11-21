@@ -3,11 +3,15 @@
 @theme {
   --color-brand-navy: #0B2963;
   --color-brand-navy-light: #163E8C;
+  --color-brand-scrim: #071B42;
+  --color-brand-ink-secondary: #334A75;
+  --color-brand-ink-muted: #475D85;
   --color-brand-green: #CDDF8E;
   --color-brand-aqua: #CBE6E2;
   --color-brand-sand: #FCD6B5;
   --color-brand-sun: #FFD428;
   --color-brand-bg: #FAF9F6;
+  --color-brand-surface: #F2EFE9;
 }
 
 @layer base {
@@ -22,21 +26,33 @@
     scroll-behavior: smooth;
     font-family:
       "Plus Jakarta Sans",
-      "Inter",
       system-ui,
       -apple-system,
       BlinkMacSystemFont,
       "Segoe UI",
       Roboto,
-      Oxygen,
-      Ubuntu,
-      Cantarell,
       sans-serif;
   }
 
-  button {
+  a[href],
+  button:not(:disabled),
+  summary,
+  select,
+  label[for],
+  [role="button"],
+  [role="tab"] {
     cursor: pointer;
   }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
+.font-display {
+  font-family: "Fraunces", Georgia, "Times New Roman", serif;
+  font-optical-sizing: auto;
 }
 
 @keyframes fadeIn {
@@ -51,7 +67,7 @@
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes pageEnter {
@@ -66,7 +82,7 @@
 @keyframes revealUp {
   from {
     opacity: 0;
-    transform: translateY(34px) scale(0.985);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -74,104 +90,47 @@
   }
 }
 
-@keyframes revealLeft {
-  from {
-    opacity: 0;
-    transform: translateX(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes revealRight {
-  from {
-    opacity: 0;
-    transform: translateX(-16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.motion-page-enter {
-  animation: pageEnter 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.motion-reveal {
-  --motion-delay: 0ms;
-}
-
-.motion-reveal[data-motion-state="hidden"] {
-  opacity: 0;
-}
-
-.motion-reveal[data-motion-state="visible"] {
-  animation-duration: 0.82s;
-  animation-fill-mode: both;
-  animation-delay: var(--motion-delay);
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.motion-reveal[data-motion-state="visible"][data-motion-direction="up"] {
-  animation-name: revealUp;
-}
-
-.motion-reveal[data-motion-state="visible"][data-motion-direction="left"] {
-  animation-name: revealLeft;
-}
-
-.motion-reveal[data-motion-state="visible"][data-motion-direction="right"] {
-  animation-name: revealRight;
-}
-
-.motion-reveal[data-motion-state="visible"][data-motion-direction="none"] {
-  animation-name: fadeIn;
-}
-
 .motion-card {
   transition:
-    transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 280ms ease,
-    border-color 220ms ease;
+    border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .motion-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 16px 30px -20px rgba(11, 41, 99, 0.45);
+  box-shadow: 0 12px 26px -20px rgba(11, 41, 99, 0.38);
 }
 
 .motion-card:active {
-  transform: translateY(-1px) scale(0.995);
+  transform: scale(0.992);
 }
 
 .motion-card:focus-visible,
 a:focus-visible,
 button:focus-visible {
-  outline: 3px solid rgba(205, 223, 142, 0.95);
+  outline: 2px solid var(--color-brand-navy);
   outline-offset: 3px;
 }
 
 .stagger-reveal > * {
-  animation: revealUp 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: revealUp 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .stagger-reveal > *:nth-child(2) {
-  animation-delay: 55ms;
+  animation-delay: 50ms;
 }
 
 .stagger-reveal > *:nth-child(3) {
-  animation-delay: 110ms;
+  animation-delay: 100ms;
 }
 
 .stagger-reveal > *:nth-child(4) {
-  animation-delay: 165ms;
+  animation-delay: 150ms;
 }
 
 .stagger-reveal > *:nth-child(n + 5) {
-  animation-delay: 220ms;
+  animation-delay: 200ms;
 }
 
 .lightbox-backdrop {
@@ -179,7 +138,7 @@ button:focus-visible {
 }
 
 .lightbox-panel {
-  animation: pageEnter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: pageEnter 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .anchor-highlight {
@@ -196,61 +155,6 @@ button:focus-visible {
   100% {
     box-shadow: 0 0 0 0 rgba(205, 223, 142, 0);
   }
-}
-
-.hero-media {
-  animation: heroImageIn 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.hero-intro {
-  animation: revealUp 680ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.hero-intro-delayed {
-  animation-delay: 100ms;
-}
-
-@keyframes heroImageIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 0.8;
-  }
-}
-
-.hero-slide-content {
-  animation: heroContentNext 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.hero-slide-content[data-direction="previous"] {
-  animation-name: heroContentPrevious;
-}
-
-@keyframes heroContentNext {
-  from {
-    opacity: 0;
-    transform: translateX(20px) translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) translateY(0);
-  }
-}
-
-@keyframes heroContentPrevious {
-  from {
-    opacity: 0;
-    transform: translateX(-20px) translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0) translateY(0);
-  }
-}
-
-.landing-scroll-section {
-  animation: revealUp 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes mediaShimmer {
@@ -276,10 +180,10 @@ button:focus-visible {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.72) 50%,
+    rgba(255, 255, 255, 0.65) 50%,
     transparent 100%
   );
-  animation: mediaShimmer 1.65s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: mediaShimmer 1.65s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
 .media-shimmer-dark::after {
@@ -290,10 +194,10 @@ button:focus-visible {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.1) 50%,
     transparent 100%
   );
-  animation: mediaShimmer 1.85s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: mediaShimmer 1.85s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -309,33 +213,9 @@ button:focus-visible {
     transition-duration: 0.01ms !important;
   }
 
-  .motion-page-enter,
-  .motion-reveal[data-motion-state="hidden"] {
-    opacity: 1;
-    transform: none;
-  }
-
   .motion-card:hover,
   .motion-card:active {
     transform: none;
-  }
-
-  .hero-media {
-    animation: none;
-    transform: none;
-  }
-
-  .hero-intro,
-  .hero-intro-delayed {
-    animation: none;
-  }
-
-  .hero-slide-content {
-    animation: none;
-  }
-
-  .landing-scroll-section {
-    animation: none;
   }
 
   .stagger-reveal > * {

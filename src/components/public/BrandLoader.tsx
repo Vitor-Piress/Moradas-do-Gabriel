@@ -5,11 +5,11 @@ interface BrandLoaderProps {
   message?: string;
 }
 
-const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
+const EASE_OUT: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 export function BrandLoader({
   show,
-  message = "Preparando sua estadia...",
+  message = "Carregando informações da pousada...",
 }: BrandLoaderProps) {
   return (
     <AnimatePresence>
@@ -18,29 +18,25 @@ export function BrandLoader({
           key="brand-loader-curtain"
           initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0, scale: 1.015 }}
-          transition={{ duration: 0.38, ease: EASE_OUT_EXPO }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.34, ease: EASE_OUT }}
           role="status"
           aria-live="polite"
           aria-label={message}
           className="fixed inset-0 z-[120] bg-brand-bg flex flex-col items-center justify-center px-6"
         >
-          <div className="relative flex flex-col items-center text-center">
-            {/* Halo sutil com a paleta solar/costeira */}
-            <div
-              aria-hidden="true"
-              className="absolute -inset-8 rounded-full bg-brand-aqua/35 blur-2xl pointer-events-none"
-            />
-
+          <div className="flex flex-col items-center text-center">
             <m.div
-              initial={{ opacity: 0, scale: 0.94, y: 6 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{ duration: 0.45, ease: EASE_OUT_EXPO }}
-              className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-white border border-slate-200 p-2.5 shadow-sm flex items-center justify-center"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.38, ease: EASE_OUT }}
+              className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white border border-brand-navy/10 p-2.5 flex items-center justify-center"
             >
               <img
                 src="/logoMoradasdoGabriel.svg"
                 alt="Logo Pousada Moradas do Gabriel"
+                width={92}
+                height={92}
                 fetchPriority="high"
                 loading="eager"
                 decoding="sync"
@@ -49,23 +45,22 @@ export function BrandLoader({
             </m.div>
 
             <m.div
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.08, ease: EASE_OUT_EXPO }}
-              className="relative mt-5 space-y-1.5"
+              transition={{ duration: 0.38, delay: 0.06, ease: EASE_OUT }}
+              className="mt-5 space-y-1.5"
             >
-              <p className="text-sm sm:text-base font-bold tracking-tight text-brand-navy">
+              <p className="font-display text-lg sm:text-xl font-medium tracking-tight text-brand-navy">
                 Pousada Moradas do Gabriel
               </p>
-              <p className="text-xs font-medium text-brand-navy/60">
+              <p className="text-xs font-medium text-brand-ink-muted">
                 {message}
               </p>
             </m.div>
 
-            {/* Barra de progresso fina e moderna */}
             <div
               aria-hidden="true"
-              className="relative mt-5 w-40 h-1 rounded-full bg-brand-navy/10 overflow-hidden"
+              className="mt-5 w-40 h-0.5 bg-brand-navy/12 overflow-hidden"
             >
               <m.div
                 initial={{ x: "-100%" }}
@@ -73,9 +68,9 @@ export function BrandLoader({
                 transition={{
                   duration: 1.15,
                   repeat: Infinity,
-                  ease: [0.45, 0, 0.55, 1],
+                  ease: [0.22, 1, 0.36, 1],
                 }}
-                className="w-2/3 h-full rounded-full bg-gradient-to-r from-brand-navy/40 via-brand-navy to-brand-navy/40"
+                className="w-1/2 h-full bg-brand-navy"
               />
             </div>
           </div>
