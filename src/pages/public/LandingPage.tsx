@@ -2,6 +2,8 @@ import {
   ArrowRight,
   Bath,
   BedDouble,
+  ChevronDown,
+  ChevronUp,
   Compass,
   Dog,
   Lock,
@@ -22,7 +24,7 @@ import {
   useScroll,
   useSpring,
 } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { TypedAccommodation } from "../../@types/database.types";
 import { BrandLoader } from "../../components/public/BrandLoader";
@@ -61,6 +63,15 @@ import { PUBLIC_CACHE_KEYS, readPublicCache } from "../../utils/publicCache";
 
 const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1];
 const HERO_BOOT_TIMEOUT_MS = 1200;
+const INITIAL_ACCOMMODATIONS_LIMIT = 6;
+
+type AccommodationFilterKey =
+  | "all"
+  | "couple"
+  | "family"
+  | "kitchen"
+  | "balcony"
+  | "pet";
 
 function formatBedsSummary(acc: TypedAccommodation): string {
   if (!acc.beds || acc.beds.length === 0) {
@@ -111,6 +122,10 @@ export function LandingPage() {
   const [readyHeroSrc, setReadyHeroSrc] = useState<string | null>(null);
   const [heroPreloadTimedOut, setHeroPreloadTimedOut] = useState(false);
   const [showFloatingHeader, setShowFloatingHeader] = useState(false);
+  const [selectedFilter, setSelectedFilter] =
+    useState<AccommodationFilterKey>("all");
+  const [showAllAccommodations, setShowAllAccommodations] = useState(false);
+  const accommodationsSectionRef = useRef<HTMLElement>(null);
 
   const metadata = businessInfo?.metadata;
   const landing = metadata?.landing;
@@ -119,6 +134,117 @@ export function LandingPage() {
     [landing?.hero_slides],
   );
   const firstHeroSrc = slides[0]?.image_url || "";
+
+  const accommodationFilters = useMemo(() => {
+    if (accommodations.length <= INITIAL_ACCOMMODATIONS_LIMIT) {
+      return [];
+    }
+
+    const candidates: Array<{
+      key: AccommodationFilterKey;
+      label: string;
+      matches: (acc: TypedAccommodation) => boolean;
+    }> = [
+      {
+        key: "couple",
+        label: "Casal (até 2)",
+        matches: (acc) => acc.max_guests <= 2,
+      },
+      {
+        key: "family",
+        label: "Famílias (3+)",
+        matches: (acc) => acc.max_guests >= 3,
+      },
+      {
+        key: "kitchen",
+        label: "Com cozinha",
+        matches: (acc) => acc.has_kitchen,
+      },
+      {
+        key: "balcony",
+        label: "Varanda / Rede",
+        matches: (acc) => acc.has_balcony,
+      },
+      {
+        key: "pet",
+        label: "Pet friendly",
+        matches: (acc) => acc.is_pet_friendly,
+      },
+    ];
+
+    const available = candidates
+      .map((item) => ({
+        ...item,
+        count: accommodations.filter(item.matches).length,
+      }))
+      .filter((item) => item.count > 0 && item.count < accommodations.length);
+
+    if (available.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        key: "all" as AccommodationFilterKey,
+        label: "Todas",
+        count: accommodations.length,
+        matches: () => true,
+      },
+      ...available,
+    ];
+  }, [accommodations]);
+
+  const activeFilterKey: AccommodationFilterKey = accommodationFilters.some(
+    (f) => f.key === selectedFilter,
+  )
+    ? selectedFilter
+    : "all";
+
+  const filteredAccommodations = useMemo(() => {
+    const activeDef = accommodationFilters.find(
+      (f) => f.key === activeFilterKey,
+    );
+    if (!activeDef || activeFilterKey === "all") {
+      return accommodations;
+    }
+    return accommodations.filter(activeDef.matches);
+  }, [accommodations, accommodationFilters, activeFilterKey]);
+
+  const isShowcaseLimited =
+    activeFilterKey === "all" &&
+    filteredAccommodations.length > INITIAL_ACCOMMODATIONS_LIMIT;
+
+  const visibleAccommodations = useMemo(() => {
+    if (!isShowcaseLimited || showAllAccommodations) {
+      return filteredAccommodations;
+    }
+    return filteredAccommodations.slice(0, INITIAL_ACCOMMODATIONS_LIMIT);
+  }, [filteredAccommodations, isShowcaseLimited, showAllAccommodations]);
+
+  const remainingAccommodationsCount = Math.max(
+    0,
+    filteredAccommodations.length - visibleAccommodations.length,
+  );
+
+  const handleToggleShowAllAccommodations = () => {
+    if (showAllAccommodations) {
+      setShowAllAccommodations(false);
+      if (accommodationsSectionRef.current) {
+        const targetTop = Math.max(
+          0,
+          accommodationsSectionRef.current.getBoundingClientRect().top +
+            window.scrollY -
+            88,
+        );
+        window.scrollTo({
+          top: targetTop,
+          behavior: prefersReducedMotion ? "auto" : "smooth",
+        });
+      }
+    } else {
+      setShowAllAccommodations(true);
+    }
+  };
 
   useEffect(() => {
     trackPageView("landing_page");
@@ -500,6 +626,7 @@ export function LandingPage() {
               )}
 
               <section
+                ref={accommodationsSectionRef}
                 id="acomodacoes"
                 aria-labelledby="acomodacoes-heading"
                 className="scroll-mt-24 space-y-8 sm:space-y-10"
@@ -592,139 +719,290 @@ export function LandingPage() {
                     ))}
                   </div>
                 ) : accommodations.length > 0 ? (
-                  <StaggerGroup
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                    staggerMs={85}
-                  >
-                    {accommodations.map((acc) => {
-                      const photoCount = countAccommodationPhotos(acc);
-                      return (
-                        <StaggerItem key={acc.id} className="h-full">
-                          <article className="h-full motion-card rounded-2xl bg-white border border-brand-navy/10 overflow-hidden flex flex-col justify-between group hover:border-brand-navy/25">
-                            <div>
-                              <Link
-                                to={`/acomodacoes/${acc.slug}`}
-                                className="block relative aspect-[16/10] overflow-hidden bg-brand-surface"
+                  <div className="space-y-7">
+                    {accommodationFilters.length > 1 && (
+                      <div
+                        role="tablist"
+                        aria-label="Filtrar acomodações por perfil"
+                        className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                      >
+                        {accommodationFilters.map((filterItem) => {
+                          const isSelected = activeFilterKey === filterItem.key;
+                          return (
+                            <button
+                              key={filterItem.key}
+                              type="button"
+                              role="tab"
+                              aria-selected={isSelected}
+                              onClick={() => {
+                                setSelectedFilter(filterItem.key);
+                                setShowAllAccommodations(false);
+                              }}
+                              className={`relative min-h-11 px-4 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap shrink-0 inline-flex items-center gap-2 transition-colors ${
+                                isSelected
+                                  ? "text-white"
+                                  : "bg-white border border-brand-navy/12 text-brand-ink-secondary hover:text-brand-navy hover:border-brand-navy/30 hover:bg-brand-surface"
+                              }`}
+                            >
+                              {isSelected && (
+                                <m.span
+                                  layoutId="landing-accommodation-filter-pill"
+                                  transition={{
+                                    type: "spring",
+                                    stiffness: 380,
+                                    damping: 32,
+                                  }}
+                                  aria-hidden="true"
+                                  className="absolute inset-0 rounded-xl bg-brand-navy pointer-events-none"
+                                />
+                              )}
+                              <span className="relative z-10">
+                                {filterItem.label}
+                              </span>
+                              <span
+                                className={`relative z-10 text-xs tabular-nums ${
+                                  isSelected
+                                    ? "text-brand-green"
+                                    : "text-brand-ink-muted"
+                                }`}
                               >
-                                <div className="w-full h-full transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]">
-                                  <SmoothImage
-                                    src={acc.cover_image}
-                                    alt={acc.title}
-                                    containerClassName="relative w-full h-full overflow-hidden"
-                                    className="w-full h-full object-cover"
-                                    fallback={
-                                      <div className="w-full h-full flex items-center justify-center text-brand-ink-muted">
-                                        <BedDouble className="w-9 h-9" />
-                                      </div>
-                                    }
-                                  />
-                                </div>
+                                {filterItem.count}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
 
-                                <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/95 border border-brand-navy/10 text-brand-navy text-xs font-semibold tabular-nums">
-                                  <Users className="w-3.5 h-3.5 shrink-0" />
-                                  <span>
-                                    Até {acc.max_guests}{" "}
-                                    {acc.max_guests === 1
-                                      ? "pessoa"
-                                      : "pessoas"}
-                                  </span>
-                                </div>
-
-                                {photoCount > 1 && (
-                                  <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-[#071B42]/86 text-white text-xs font-medium tabular-nums">
-                                    {photoCount} fotos
-                                  </div>
-                                )}
-                              </Link>
-
-                              <div className="p-5 sm:p-6 space-y-3.5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <AnimatePresence mode="popLayout" initial={false}>
+                        {visibleAccommodations.map((acc, idx) => {
+                          const photoCount = countAccommodationPhotos(acc);
+                          return (
+                            <m.div
+                              key={acc.id}
+                              layout={!prefersReducedMotion}
+                              initial={
+                                prefersReducedMotion
+                                  ? { opacity: 1 }
+                                  : { opacity: 0, y: 20, scale: 0.985 }
+                              }
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={
+                                prefersReducedMotion
+                                  ? { opacity: 0 }
+                                  : { opacity: 0, scale: 0.96 }
+                              }
+                              transition={{
+                                duration: 0.44,
+                                delay: prefersReducedMotion
+                                  ? 0
+                                  : Math.min((idx % 6) * 0.05, 0.24),
+                                ease: EASE_OUT_EXPO,
+                              }}
+                              className="h-full"
+                            >
+                              <article className="h-full motion-card rounded-2xl bg-white border border-brand-navy/10 overflow-hidden flex flex-col justify-between group hover:border-brand-navy/25">
                                 <div>
                                   <Link
                                     to={`/acomodacoes/${acc.slug}`}
-                                    className="hover:underline underline-offset-4"
+                                    className="block relative aspect-[16/10] overflow-hidden bg-brand-surface"
                                   >
-                                    <h3 className="text-lg font-semibold text-brand-navy break-words leading-snug">
-                                      {acc.title}
-                                    </h3>
-                                  </Link>
-                                  <p className="mt-1.5 text-xs font-medium text-brand-ink-muted flex items-center gap-1.5">
-                                    <BedDouble className="w-3.5 h-3.5 shrink-0" />
-                                    <span>{formatBedsSummary(acc)}</span>
-                                  </p>
-                                </div>
+                                    <div className="w-full h-full transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]">
+                                      <SmoothImage
+                                        src={acc.cover_image}
+                                        alt={acc.title}
+                                        containerClassName="relative w-full h-full overflow-hidden"
+                                        className="w-full h-full object-cover"
+                                        fallback={
+                                          <div className="w-full h-full flex items-center justify-center text-brand-ink-muted">
+                                            <BedDouble className="w-9 h-9" />
+                                          </div>
+                                        }
+                                      />
+                                    </div>
 
-                                <p className="text-sm text-brand-ink-secondary leading-relaxed line-clamp-3 break-words">
-                                  {acc.short_description}
-                                </p>
-
-                                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                                  {acc.has_ac && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-bg border border-brand-navy/10 text-xs font-medium text-brand-navy">
-                                      <Snowflake className="w-3 h-3 shrink-0" />
-                                      <span>Ar-condicionado</span>
-                                    </span>
-                                  )}
-                                  {acc.has_tv && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-bg border border-brand-navy/10 text-xs font-medium text-brand-navy">
-                                      <Tv className="w-3 h-3 shrink-0" />
-                                      <span>TV</span>
-                                    </span>
-                                  )}
-                                  {acc.has_kitchen && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-bg border border-brand-navy/10 text-xs font-medium text-brand-navy">
-                                      <Utensils className="w-3 h-3 shrink-0" />
-                                      <span>Cozinha</span>
-                                    </span>
-                                  )}
-                                  {acc.has_kitchen_utensils &&
-                                    !acc.has_kitchen && (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-bg border border-brand-navy/10 text-xs font-medium text-brand-navy">
-                                        <Refrigerator className="w-3 h-3 shrink-0" />
-                                        <span>Frigobar e utensílios</span>
+                                    <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/95 border border-brand-navy/10 text-brand-navy text-xs font-semibold tabular-nums">
+                                      <Users className="w-3.5 h-3.5 shrink-0" />
+                                      <span>
+                                        Até {acc.max_guests}{" "}
+                                        {acc.max_guests === 1
+                                          ? "pessoa"
+                                          : "pessoas"}
                                       </span>
-                                    )}
-                                  {acc.has_wifi && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-bg border border-brand-navy/10 text-xs font-medium text-brand-navy">
-                                      <Wifi className="w-3 h-3 shrink-0" />
-                                      <span>Wi-Fi</span>
-                                    </span>
-                                  )}
-                                  {acc.has_private_bathroom && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-bg border border-brand-navy/10 text-xs font-medium text-brand-navy">
-                                      <Bath className="w-3 h-3 shrink-0" />
-                                      <span>Banheiro privativo</span>
-                                    </span>
-                                  )}
-                                  {acc.is_pet_friendly && (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-bg border border-brand-navy/10 text-xs font-medium text-brand-navy">
-                                      <Dog className="w-3 h-3 shrink-0" />
-                                      <span>Pet friendly</span>
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
+                                    </div>
 
-                            <div className="px-5 sm:px-6 pb-5 sm:pb-6 pt-0">
-                              <Link
-                                to={`/acomodacoes/${acc.slug}`}
-                                onClick={() =>
-                                  trackLinkClick(
-                                    null,
-                                    `view_accommodation_${acc.slug}`,
-                                  )
-                                }
-                                className="w-full inline-flex items-center justify-between gap-2 min-h-11 px-4 rounded-xl bg-brand-navy hover:bg-brand-navy-light active:scale-[0.985] text-white font-semibold text-sm transition-[background-color,transform]"
-                              >
-                                <span>Ver fotos e detalhes</span>
-                                <ArrowRight className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
-                              </Link>
-                            </div>
-                          </article>
-                        </StaggerItem>
-                      );
-                    })}
-                  </StaggerGroup>
+                                    {photoCount > 1 && (
+                                      <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-lg bg-[#071B42]/86 text-white text-xs font-medium tabular-nums">
+                                        {photoCount} fotos
+                                      </div>
+                                    )}
+                                  </Link>
+
+                                  <div className="p-5 sm:p-6 space-y-3.5">
+                                    <div>
+                                      <Link
+                                        to={`/acomodacoes/${acc.slug}`}
+                                        className="hover:underline underline-offset-4"
+                                      >
+                                        <h3 className="text-lg font-semibold text-brand-navy break-words leading-snug">
+                                          {acc.title}
+                                        </h3>
+                                      </Link>
+                                      <p className="mt-1.5 text-xs font-medium text-brand-ink-muted flex items-center gap-1.5">
+                                        <BedDouble className="w-3.5 h-3.5 shrink-0" />
+                                        <span>{formatBedsSummary(acc)}</span>
+                                      </p>
+                                    </div>
+
+                                    <p className="text-sm text-brand-ink-secondary leading-relaxed line-clamp-3 break-words">
+                                      {acc.short_description}
+                                    </p>
+
+                                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                      {acc.has_ac && (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-bg border border-brand-navy/10 text-xs font-medium text-brand-navy">
+                                          <Snowflake className="w-3 h-3 shrink-0" />
+                                          <span>Ar-condicionado</span>
+                                        </span>
+                                      )}
+                                      {acc.has_tv && (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-bg border border-brand-navy/10 text-xs font-medium text-brand-navy">
+                                          <Tv className="w-3 h-3 shrink-0" />
+                                          <span>TV</span>
+                                        </span>
+                                      )}
+                                      {acc.has_kitchen && (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-bg border border-brand-navy/10 text-xs font-medium text-brand-navy">
+                                          <Utensils className="w-3 h-3 shrink-0" />
+                                          <span>Cozinha</span>
+                                        </span>
+                                      )}
+                                      {acc.has_kitchen_utensils &&
+                                        !acc.has_kitchen && (
+                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-bg border border-brand-navy/10 text-xs font-medium text-brand-navy">
+                                            <Refrigerator className="w-3 h-3 shrink-0" />
+                                            <span>Frigobar e utensílios</span>
+                                          </span>
+                                        )}
+                                      {acc.has_wifi && (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-bg border border-brand-navy/10 text-xs font-medium text-brand-navy">
+                                          <Wifi className="w-3 h-3 shrink-0" />
+                                          <span>Wi-Fi</span>
+                                        </span>
+                                      )}
+                                      {acc.has_private_bathroom && (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-bg border border-brand-navy/10 text-xs font-medium text-brand-navy">
+                                          <Bath className="w-3 h-3 shrink-0" />
+                                          <span>Banheiro privativo</span>
+                                        </span>
+                                      )}
+                                      {acc.is_pet_friendly && (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-brand-bg border border-brand-navy/10 text-xs font-medium text-brand-navy">
+                                          <Dog className="w-3 h-3 shrink-0" />
+                                          <span>Pet friendly</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="px-5 sm:px-6 pb-5 sm:pb-6 pt-0">
+                                  <Link
+                                    to={`/acomodacoes/${acc.slug}`}
+                                    onClick={() =>
+                                      trackLinkClick(
+                                        null,
+                                        `view_accommodation_${acc.slug}`,
+                                      )
+                                    }
+                                    className="w-full inline-flex items-center justify-between gap-2 min-h-11 px-4 rounded-xl bg-brand-navy hover:bg-brand-navy-light active:scale-[0.985] text-white font-semibold text-sm transition-[background-color,transform]"
+                                  >
+                                    <span>Ver fotos e detalhes</span>
+                                    <ArrowRight className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
+                                  </Link>
+                                </div>
+                              </article>
+                            </m.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                    </div>
+
+                    {isShowcaseLimited && (
+                      <div className="rounded-2xl bg-white border border-brand-navy/10 px-5 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-2 min-w-0 flex-1 max-w-sm">
+                          <div className="flex items-center justify-between gap-3 text-xs sm:text-sm font-medium text-brand-ink-secondary tabular-nums">
+                            <span>
+                              Exibindo{" "}
+                              <strong className="text-brand-navy">
+                                {visibleAccommodations.length}
+                              </strong>{" "}
+                              de{" "}
+                              <strong className="text-brand-navy">
+                                {filteredAccommodations.length}
+                              </strong>{" "}
+                              acomodações
+                            </span>
+                            <span className="text-brand-ink-muted">
+                              {Math.round(
+                                (visibleAccommodations.length /
+                                  filteredAccommodations.length) *
+                                  100,
+                              )}
+                              %
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-brand-surface overflow-hidden">
+                            <m.div
+                              aria-hidden="true"
+                              initial={false}
+                              animate={{
+                                width: `${(visibleAccommodations.length / filteredAccommodations.length) * 100}%`,
+                              }}
+                              transition={{
+                                duration: 0.45,
+                                ease: EASE_OUT_EXPO,
+                              }}
+                              className="h-full rounded-full bg-brand-navy"
+                            />
+                          </div>
+                        </div>
+
+                        <m.button
+                          type="button"
+                          onClick={handleToggleShowAllAccommodations}
+                          whileTap={
+                            prefersReducedMotion ? undefined : { scale: 0.985 }
+                          }
+                          aria-expanded={showAllAccommodations}
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 min-h-12 px-6 rounded-xl bg-brand-bg hover:bg-brand-surface border border-brand-navy/20 hover:border-brand-navy/40 text-brand-navy font-semibold text-sm transition-colors shrink-0"
+                        >
+                          {showAllAccommodations ? (
+                            <>
+                              <span>
+                                Recolher para as {INITIAL_ACCOMMODATIONS_LIMIT}{" "}
+                                principais
+                              </span>
+                              <ChevronUp className="w-4 h-4 shrink-0" />
+                            </>
+                          ) : (
+                            <>
+                              <span>
+                                Ver todas as {filteredAccommodations.length}{" "}
+                                acomodações (+{remainingAccommodationsCount}{" "}
+                                {remainingAccommodationsCount === 1
+                                  ? "opção"
+                                  : "opções"}
+                                )
+                              </span>
+                              <ChevronDown className="w-4 h-4 shrink-0" />
+                            </>
+                          )}
+                        </m.button>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="rounded-2xl bg-white border border-brand-navy/10 p-8 text-center">
                     <p className="text-sm text-brand-ink-secondary">
