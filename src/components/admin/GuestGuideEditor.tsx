@@ -14,8 +14,6 @@ import {
   Plus,
   Save,
   ShoppingBag,
-  Sparkles,
-  Sun,
   Trash2,
   Umbrella,
   Upload,
@@ -68,7 +66,25 @@ function renderPlaceCategoryIcon(category: string, className: string) {
   if (normalized.includes("mercado") || normalized.includes("conveniência")) {
     return <ShoppingBag className={className} />;
   }
-  return <Sparkles className={className} />;
+  return <MapPin className={className} />;
+}
+
+function getPreviewCtaLabel(link: string): string {
+  const lower = link.toLowerCase();
+  if (
+    lower.includes("maps.app") ||
+    lower.includes("google.com/maps") ||
+    lower.includes("goo.gl/maps")
+  ) {
+    return "Abrir no Google Maps";
+  }
+  if (lower.includes("waze.com")) {
+    return "Navegar com Waze";
+  }
+  if (lower.includes("instagram.com")) {
+    return "Ver no Instagram";
+  }
+  return "Conhecer local";
 }
 
 export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
@@ -766,8 +782,8 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
           <p className="mt-1 text-[11px] text-brand-navy/65 break-words">
             Dica: No Google Maps, clique em{" "}
             <strong>Compartilhar → Incorporar um mapa</strong> e cole o código{" "}
-            <code>&lt;iframe&gt;</code> inteiro aqui — extraímos apenas a URL do{" "}
-            <code>src</code> automaticamente.
+            <code>&lt;iframe&gt;</code> inteiro aqui para extrair apenas a URL
+            do <code>src</code> automaticamente.
           </p>
 
           {iframeExtractedNotice && (
@@ -867,7 +883,7 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
       <section className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-6 shadow-xs space-y-5">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-brand-bg border border-slate-200 text-brand-navy flex items-center justify-center shrink-0">
-            <Sun className="w-5 h-5" />
+            <Compass className="w-5 h-5" />
           </div>
           <div className="min-w-0">
             <h4 className="text-base font-bold text-brand-navy break-words">
@@ -880,7 +896,7 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
           </div>
         </div>
 
-        {/* PREVIEW DO COMPONENTE • CURADORIA DA POUSADA (DICAS DE LUGARES) */}
+        {/* PREVIEW DO COMPONENTE · CURADORIA DA POUSADA (MOBILE-FIRST) */}
         {(() => {
           const isNewPreview =
             previewPlaceIndex === "new" || placesTips.length === 0;
@@ -910,18 +926,19 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
             previewImages.length > 0
               ? previewImageIdx % previewImages.length
               : 0;
-          const hasBothPreviewMedia =
-            previewImages.length > 0 && Boolean(previewEmbed);
+          const hasPhotos = previewImages.length > 0;
+          const hasMap = Boolean(previewEmbed);
+          const hasBothPreviewMedia = hasPhotos && hasMap;
 
           return (
             <div className="rounded-2xl bg-brand-bg border border-slate-200 p-3.5 sm:p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-brand-navy">
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Preview do Componente • Curadoria da Pousada</span>
+                <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-navy">
+                  <Eye className="w-4 h-4" />
+                  <span>Preview mobile · Curadoria da pousada</span>
                 </div>
-                <span className="px-2.5 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-semibold text-brand-navy/70">
-                  Clique em uma dica para alternar a visualização
+                <span className="px-2.5 py-0.5 rounded-md bg-white border border-slate-200 text-xs font-medium text-brand-ink-muted">
+                  Clique em uma dica para alternar
                 </span>
               </div>
 
@@ -937,10 +954,10 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
                         setPreviewPlaceIndex(idx);
                         setPreviewImageIdx(0);
                       }}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                      className={`min-h-10 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
                         isCurrent
                           ? "bg-brand-navy text-white shadow-xs"
-                          : "bg-white text-brand-navy/75 border border-slate-200 hover:text-brand-navy"
+                          : "bg-white text-brand-ink-secondary border border-slate-200 hover:text-brand-navy"
                       }`}
                     >
                       {p.name || `Dica #${idx + 1}`}
@@ -953,54 +970,36 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
                     setPreviewPlaceIndex("new");
                     setPreviewImageIdx(0);
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                  className={`min-h-10 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
                     isNewPreview
                       ? "bg-brand-navy text-white shadow-xs"
-                      : "bg-white text-brand-navy/75 border border-slate-200 hover:text-brand-navy"
+                      : "bg-white text-brand-ink-secondary border border-slate-200 hover:text-brand-navy"
                   }`}
                 >
                   + Nova Recomendação
                 </button>
               </div>
 
-              {/* Card Renderizado Igual ao Guia do Hóspede */}
-              <article className="rounded-xl bg-white border border-slate-200 p-4 flex flex-col justify-between gap-3">
-                <div className="space-y-1.5 min-w-0">
-                  <div className="flex items-start justify-between gap-2 flex-wrap">
-                    <h5 className="font-bold text-sm sm:text-base text-brand-navy break-words min-w-0">
-                      {activePlace.name || "Nome do Local"}
-                    </h5>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-brand-bg border border-slate-200 text-brand-navy shrink-0">
-                      {renderPlaceCategoryIcon(
-                        activePlace.category || "Gastronomia",
-                        "w-3 h-3 shrink-0",
-                      )}
-                      <span>{activePlace.category || "Gastronomia"}</span>
-                    </span>
-                  </div>
-                  {activePlace.description && (
-                    <p className="text-xs sm:text-sm text-brand-navy/75 leading-relaxed break-words">
-                      {activePlace.description}
-                    </p>
-                  )}
-                </div>
-
-                {(previewImages.length > 0 || previewEmbed) && (
-                  <div
-                    className={`grid grid-cols-1 ${
-                      hasBothPreviewMedia ? "sm:grid-cols-2" : ""
-                    } gap-3`}
-                  >
-                    {previewImages.length > 0 && (
-                      <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-brand-bg h-48 sm:h-52">
+              {/* Card Mobile-First Limpo Renderizado Igual ao Guia do Hóspede */}
+              <article className="max-w-md mx-auto rounded-2xl bg-white border border-brand-navy/10 overflow-hidden shadow-xs">
+                {(hasPhotos || hasMap) && (
+                  <div className="relative aspect-[16/10] bg-brand-surface overflow-hidden">
+                    {hasPhotos ? (
+                      <>
                         <img
                           src={previewImages[safeImgIdx]}
                           alt={activePlace.name}
                           className="w-full h-full object-cover"
                         />
-                        <span className="absolute top-2 right-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/95 border border-slate-200 text-brand-navy text-[11px] font-semibold shadow-xs">
-                          <Maximize2 className="w-3.5 h-3.5 shrink-0" />
-                          <span>Ampliar</span>
+                        <span className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/95 border border-brand-navy/10 text-brand-navy text-xs font-semibold">
+                          {renderPlaceCategoryIcon(
+                            activePlace.category || "Gastronomia",
+                            "w-3.5 h-3.5 shrink-0",
+                          )}
+                          <span>{activePlace.category || "Gastronomia"}</span>
+                        </span>
+                        <span className="absolute top-3 right-3 w-10 h-10 rounded-xl bg-[#071B42]/75 border border-white/20 text-white flex items-center justify-center">
+                          <Maximize2 className="w-4 h-4 shrink-0" />
                         </span>
                         {previewImages.length > 1 && (
                           <>
@@ -1013,7 +1012,8 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
                                     previewImages.length,
                                 )
                               }
-                              className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-white/90 border border-slate-200 text-brand-navy flex items-center justify-center shadow-xs hover:bg-white"
+                              aria-label="Foto anterior no preview"
+                              className="absolute left-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-[#071B42]/75 hover:bg-[#071B42] text-white flex items-center justify-center"
                             >
                               <ChevronLeft className="w-4 h-4" />
                             </button>
@@ -1024,40 +1024,84 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
                                   (prev) => (prev + 1) % previewImages.length,
                                 )
                               }
-                              className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-white/90 border border-slate-200 text-brand-navy flex items-center justify-center shadow-xs hover:bg-white"
+                              aria-label="Próxima foto no preview"
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-[#071B42]/75 hover:bg-[#071B42] text-white flex items-center justify-center"
                             >
                               <ChevronRight className="w-4 h-4" />
                             </button>
-                            <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-brand-navy/85 text-white text-[10px] font-semibold">
-                              {safeImgIdx + 1}/{previewImages.length}
-                            </span>
+                            <div className="absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-[#071B42]/70 to-transparent flex items-end justify-between px-3 pb-2.5 pointer-events-none">
+                              <div className="flex items-center gap-1.5">
+                                {previewImages.map((_, dotIdx) => (
+                                  <span
+                                    key={dotIdx}
+                                    className={`h-1.5 rounded-full ${
+                                      dotIdx === safeImgIdx
+                                        ? "w-5 bg-white"
+                                        : "w-1.5 bg-white/55"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-[11px] font-semibold tabular-nums text-white">
+                                {String(safeImgIdx + 1).padStart(2, "0")} /{" "}
+                                {String(previewImages.length).padStart(2, "0")}
+                              </span>
+                            </div>
                           </>
                         )}
-                      </div>
-                    )}
-
-                    {previewEmbed && (
-                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-brand-bg h-48 sm:h-52">
-                        <iframe
-                          src={previewEmbed}
-                          title={`Preview Mapa - ${activePlace.name}`}
-                          className="w-full h-full border-0"
-                          loading="lazy"
-                          referrerPolicy="no-referrer-when-downgrade"
-                        />
-                      </div>
+                      </>
+                    ) : (
+                      <iframe
+                        src={previewEmbed}
+                        title={`Preview Mapa - ${activePlace.name}`}
+                        className="w-full h-full border-0"
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                      />
                     )}
                   </div>
                 )}
 
-                {activePlace.link && (
-                  <div className="pt-1">
-                    <span className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-bg border border-slate-200 text-brand-navy font-semibold text-xs">
-                      <span>Ver localização / conhecer</span>
-                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                    </span>
+                <div className="p-4 space-y-3">
+                  <div className="space-y-1.5 min-w-0">
+                    {!hasPhotos && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-brand-bg border border-brand-navy/10 text-xs font-semibold text-brand-navy">
+                        {renderPlaceCategoryIcon(
+                          activePlace.category || "Gastronomia",
+                          "w-3.5 h-3.5 shrink-0",
+                        )}
+                        <span>{activePlace.category || "Gastronomia"}</span>
+                      </span>
+                    )}
+
+                    <h5 className="font-display font-semibold text-lg text-brand-navy leading-snug break-words">
+                      {activePlace.name || "Nome do Local"}
+                    </h5>
+
+                    {activePlace.description && (
+                      <p className="text-sm text-brand-ink-secondary leading-relaxed break-words">
+                        {activePlace.description}
+                      </p>
+                    )}
                   </div>
-                )}
+
+                  {(activePlace.link || hasBothPreviewMedia) && (
+                    <div className="flex items-center gap-2 pt-0.5">
+                      {activePlace.link && (
+                        <span className="flex-1 min-h-11 px-4 rounded-xl bg-brand-navy text-white font-semibold text-xs sm:text-sm inline-flex items-center justify-center gap-2">
+                          <span>{getPreviewCtaLabel(activePlace.link)}</span>
+                          <ExternalLink className="w-4 h-4 shrink-0" />
+                        </span>
+                      )}
+                      {hasBothPreviewMedia && (
+                        <span className="min-h-11 px-3.5 rounded-xl bg-brand-bg border border-brand-navy/15 text-brand-navy text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 shrink-0">
+                          <MapPin className="w-3.5 h-3.5 shrink-0" />
+                          <span>Ver mapa</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </article>
             </div>
           );
@@ -1383,7 +1427,7 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
                   <div className="flex items-center gap-1.5 text-[11px] text-brand-navy/55 pt-0.5">
                     <Image className="w-3.5 h-3.5 shrink-0" />
                     <span>
-                      Sem fotos adicionadas (opcional — use o botão Upload acima
+                      Sem fotos adicionadas (opcional: use o botão Upload acima
                       para enviar fotos do local)
                     </span>
                   </div>

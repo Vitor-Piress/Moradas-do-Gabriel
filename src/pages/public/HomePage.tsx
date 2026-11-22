@@ -1,5 +1,5 @@
 import { Lock, RefreshCw } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { BrandLoader } from "../../components/public/BrandLoader";
 import { GuestGuideTab } from "../../components/public/GuestGuideTab";
@@ -25,6 +25,8 @@ export function HomePage() {
     refetch: refetchBusiness,
   } = useBusinessInfo();
 
+  const [focusedSection, setFocusedSection] = useState<string | null>(null);
+
   useEffect(() => {
     trackPageView(activeTab === "guide" ? "guia_do_hospede" : "links_contato");
   }, [activeTab]);
@@ -33,22 +35,42 @@ export function HomePage() {
     if (activeTab !== "guide" || !location.hash || !businessInfo) return;
 
     const sectionId = decodeURIComponent(location.hash.slice(1));
-    const scrollDelay = 650;
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
-    const scrollDuration = prefersReducedMotion ? 1 : 1400;
+    const scrollDelay = prefersReducedMotion ? 50 : 340;
+    const scrollDuration = prefersReducedMotion ? 1 : 780;
     let animationFrameId = 0;
+    let clearHighlightTimeoutId = 0;
 
     window.scrollTo({ top: 0, behavior: "auto" });
+
+    const triggerSectionFocus = () => {
+      setFocusedSection(sectionId);
+      clearHighlightTimeoutId = window.setTimeout(() => {
+        setFocusedSection((current) =>
+          current === sectionId ? null : current,
+        );
+      }, 1900);
+    };
 
     const scrollToSection = () => {
       const target = document.getElementById(sectionId);
       if (!target) return;
 
       const startPosition = window.scrollY;
-      const targetPosition =
-        target.getBoundingClientRect().top + startPosition - 16;
+      // Mantém folga abaixo do navbar sticky para não cortar o destaque arredondado
+      const targetPosition = Math.max(
+        0,
+        target.getBoundingClientRect().top + startPosition - 78,
+      );
+
+      if (prefersReducedMotion) {
+        window.scrollTo({ top: targetPosition, behavior: "auto" });
+        triggerSectionFocus();
+        return;
+      }
+
       const distance = targetPosition - startPosition;
       const startTime = performance.now();
 
@@ -57,10 +79,7 @@ export function HomePage() {
           (currentTime - startTime) / scrollDuration,
           1,
         );
-        const easedProgress =
-          progress < 0.5
-            ? 2 * progress * progress
-            : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+        const easedProgress = 1 - Math.pow(1 - progress, 3);
 
         window.scrollTo({
           top: startPosition + distance * easedProgress,
@@ -70,13 +89,7 @@ export function HomePage() {
         if (progress < 1) {
           animationFrameId = window.requestAnimationFrame(animateScroll);
         } else {
-          target.classList.remove("anchor-highlight");
-          void target.offsetWidth;
-          target.classList.add("anchor-highlight");
-          window.setTimeout(
-            () => target.classList.remove("anchor-highlight"),
-            2000,
-          );
+          triggerSectionFocus();
         }
       };
 
@@ -90,30 +103,33 @@ export function HomePage() {
     return () => {
       window.cancelAnimationFrame(animationFrameId);
       window.clearTimeout(scrollTimeoutId);
+      window.clearTimeout(clearHighlightTimeoutId);
     };
-  }, [activeTab, location.hash, businessInfo]);
+  }, [activeTab, location.hash, location.key, businessInfo]);
 
   if (isBusinessError && !businessInfo) {
     return (
       <div className="min-h-screen bg-brand-bg text-brand-navy flex flex-col items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md rounded-3xl bg-white border border-slate-200 p-8 text-center shadow-xs space-y-4">
-          <div className="mx-auto w-20 h-20 rounded-2xl bg-brand-bg border border-slate-200 p-2 flex items-center justify-center">
+        <div className="w-full max-w-md rounded-2xl bg-white border border-brand-navy/10 p-8 text-center shadow-xs space-y-4">
+          <div className="mx-auto w-20 h-20 rounded-xl bg-brand-bg border border-brand-navy/10 p-2 flex items-center justify-center">
             <img
               src="/logoMoradasdoGabriel.svg"
               alt="Logo Pousada Moradas do Gabriel"
+              width={64}
+              height={64}
               className="w-full h-full object-contain"
             />
           </div>
-          <h1 className="text-xl font-bold text-brand-navy">
+          <h1 className="font-display text-xl font-semibold text-brand-navy">
             Não foi possível carregar as informações
           </h1>
-          <p className="text-sm text-brand-navy/75 leading-relaxed">
+          <p className="text-sm text-brand-ink-secondary leading-relaxed">
             Verifique sua conexão com a internet e tente novamente.
           </p>
           <button
             type="button"
             onClick={() => void refetchBusiness()}
-            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-brand-navy hover:bg-brand-navy-light text-white text-sm font-semibold transition-colors"
+            className="inline-flex items-center justify-center gap-2 min-h-11 px-5 rounded-xl bg-brand-navy hover:bg-brand-navy-light text-white text-sm font-semibold transition-colors"
           >
             <RefreshCw className="w-4 h-4 shrink-0" />
             <span>Tentar novamente</span>
@@ -127,7 +143,7 @@ export function HomePage() {
   const metadata = businessInfo?.metadata;
   const welcomeMessage =
     businessInfo?.content ??
-    "Seja muito bem-vindo! Aqui você encontra nossos links rápidos e o guia completo para aproveitar sua estadia.";
+    "Seja muito bem-vindo! Aqui você encontra nossas informações e acessos rápidos para aproveitar sua estadia.";
 
   return (
     <>
@@ -141,38 +157,48 @@ export function HomePage() {
       />
 
       {businessInfo && metadata && (
-        <PageTransition className="min-h-screen bg-brand-bg text-brand-navy flex flex-col justify-between">
-          <div className="w-full max-w-lg mx-auto px-4 pb-10">
-            {/* Header Principal */}
-            <PublicHeader welcomeMessage={welcomeMessage} />
-
-            {/* Conteúdo Individual da Rota (/links-contato ou /guia-do-hospede) */}
-            <main className="mt-2">
-              {activeTab === "links" ? (
+        <PageTransition className="min-h-screen bg-brand-bg text-brand-navy flex flex-col justify-between overflow-x-clip">
+          {activeTab === "guide" ? (
+            <div className="flex-1 flex flex-col">
+              <PublicHeader
+                welcomeMessage={welcomeMessage}
+                variant="guide"
+              />
+              <main className="flex-1">
+                <GuestGuideTab
+                  metadata={metadata}
+                  focusedSection={focusedSection}
+                />
+              </main>
+            </div>
+          ) : (
+            <div className="w-full max-w-lg mx-auto px-4 pb-10">
+              <PublicHeader
+                welcomeMessage={welcomeMessage}
+                variant="links"
+              />
+              <main className="mt-1">
                 <LinksTab
                   links={links}
                   isLoading={isLoadingLinks}
                   contacts={metadata.contacts}
                   mapsUrl={metadata.location.maps_url}
                 />
-              ) : (
-                <GuestGuideTab metadata={metadata} />
-              )}
-            </main>
-          </div>
+              </main>
+            </div>
+          )}
 
-          {/* Rodapé Editorial */}
-          <footer className="w-full max-w-lg mx-auto px-4 py-6 border-t border-slate-200 text-center space-y-2">
-            <p className="text-xs font-medium text-brand-navy/65">
+          <footer className="w-full max-w-lg mx-auto px-4 py-6 border-t border-brand-navy/10 text-center space-y-2">
+            <p className="text-xs font-medium text-brand-ink-muted">
               © {new Date().getFullYear()} Pousada Moradas do Gabriel
             </p>
             <div>
               <Link
                 to="/admin"
-                className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-brand-navy/50 hover:text-brand-navy transition-colors"
+                className="inline-flex items-center justify-center gap-1.5 min-h-11 px-3 text-xs font-medium text-brand-ink-muted hover:text-brand-navy transition-colors"
               >
-                <Lock className="w-3 h-3 shrink-0" />
-                <span>Painel da Pousada</span>
+                <Lock className="w-3.5 h-3.5 shrink-0" />
+                <span>Painel da pousada</span>
               </Link>
             </div>
           </footer>
