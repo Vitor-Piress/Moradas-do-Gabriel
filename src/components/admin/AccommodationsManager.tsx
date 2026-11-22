@@ -1,7 +1,10 @@
 import {
+  ArrowDown,
   ArrowRight,
+  ArrowUp,
   Bath,
   BedDouble,
+  ChevronsUp,
   Dog,
   Edit3,
   ExternalLink,
@@ -20,7 +23,14 @@ import {
   Wifi,
   X,
 } from "lucide-react";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { m, useReducedMotion } from "motion/react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import { Link } from "react-router-dom";
 import type {
   BedConfigItem,
@@ -32,10 +42,12 @@ import {
   uploadImageToR2,
   type SaveAccommodationPayload,
 } from "../../services";
+import type { AccommodationDraftPreview } from "./AdminLivePreviewAside";
 
 interface AccommodationsManagerProps {
   accommodations: TypedAccommodation[];
   isLoading: boolean;
+  onDraftChange?: (draft: AccommodationDraftPreview) => void;
 }
 
 const BED_TYPE_SUGGESTIONS = [
@@ -50,12 +62,23 @@ const BED_TYPE_SUGGESTIONS = [
 export function AccommodationsManager({
   accommodations,
   isLoading,
+  onDraftChange,
 }: AccommodationsManagerProps) {
-  const { createMutation, updateMutation, deleteMutation } =
+  const prefersReducedMotion = useReducedMotion();
+  const { createMutation, updateMutation, deleteMutation, reorderMutation } =
     useAccommodationMutations();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(
+    null,
+  );
+  const [preferDetailView, setPreferDetailView] = useState(false);
+  const [optimisticOrder, setOptimisticOrder] = useState<{
+    sourceKey: string;
+    items: TypedAccommodation[];
+  } | null>(null);
+  const [orderError, setOrderError] = useState<string | null>(null);
 
   // Campos do Formulário
   const [title, setTitle] = useState("");
@@ -114,6 +137,8 @@ export function AccommodationsManager({
   const handleOpenNew = () => {
     resetForm();
     setIsFormOpen(true);
+    setSelectedPreviewId("draft-new-accommodation");
+    setPreferDetailView(true);
   };
 
   const handleOpenEdit = (acc: TypedAccommodation) => {
@@ -142,6 +167,8 @@ export function AccommodationsManager({
     setIsActive(acc.is_active);
     setFormError(null);
     setIsFormOpen(true);
+    setSelectedPreviewId(acc.id);
+    setPreferDetailView(true);
   };
 
   const handleCoverUpload = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -255,6 +282,7 @@ export function AccommodationsManager({
         await createMutation.mutateAsync(payload);
       }
       setIsFormOpen(false);
+      setPreferDetailView(false);
       resetForm();
     } catch (err) {
       setFormError(
@@ -264,6 +292,160 @@ export function AccommodationsManager({
       );
     }
   };
+
+  const sourceKey = useMemo(
+    () => accommodations.map((a) => `${a.id}:${a.position}`).join("|"),
+    [accommodations],
+  );
+
+  const orderedAccommodations = useMemo(
+    () =>
+      optimisticOrder?.sourceKey === sourceKey
+        ? optimisticOrder.items
+        : accommodations,
+    [optimisticOrder, sourceKey, accommodations],
+  );
+
+  const handleMove = async (
+    index: number,
+    direction: "up" | "down" | "top",
+  ) => {
+    const targetIndex =
+      direction === "top"
+        ? 0
+        : direction === "up"
+          ? index - 1
+          : index + 1;
+    if (
+      targetIndex < 0 ||
+      targetIndex >= orderedAccommodations.length ||
+      targetIndex === index
+    ) {
+      return;
+    }
+
+    const next = [...orderedAccommodations];
+    const [moved] = next.splice(index, 1);
+    next.splice(targetIndex, 0, moved);
+
+    const withPositions = next.map((item, idx) => ({
+      ...item,
+      position: idx + 1,
+    }));
+
+    setOrderError(null);
+    setPreferDetailView(false);
+    setOptimisticOrder({ sourceKey, items: withPositions });
+
+    const hasDemo = withPositions.some((item) => item.id.startsWith("demo-"));
+    if (hasDemo) return;
+
+    try {
+      await reorderMutation.mutateAsync(
+        withPositions.map((item) => ({
+          id: item.id,
+          position: item.position,
+        })),
+      );
+    } catch (err) {
+      setOptimisticOrder(null);
+      setOrderError(
+        err instanceof Error
+          ? err.message
+          : "Erro ao atualizar a ordem das acomodações.",
+      );
+    }
+  };
+
+  const formDraftAccommodation: TypedAccommodation | null = useMemo(() => {
+    if (!isFormOpen) return null;
+    const nowIso = new Date().toISOString();
+    return {
+      id: editingId ?? "draft-new-accommodation",
+      title: title.trim() || "Nova acomodação",
+      slug:
+        slug.trim() ||
+        slugifyAccommodationTitle(title.trim() || "nova-acomodacao"),
+      short_description: shortDescription.trim(),
+      full_description: fullDescription.trim(),
+      cover_image: coverImage.trim(),
+      gallery: gallery.map((g) => g.trim()).filter(Boolean),
+      max_guests: Math.max(1, Number(maxGuests) || 1),
+      beds: beds.filter((b) => b.type.trim() !== ""),
+      has_kitchen: hasKitchen,
+      has_kitchen_utensils: hasKitchenUtensils,
+      has_tv: hasTv,
+      has_ac: hasAc,
+      has_wifi: hasWifi,
+      has_balcony: hasBalcony,
+      has_private_bathroom: hasPrivateBathroom,
+      has_bed_bath_linen: hasBedBathLinen,
+      is_pet_friendly: isPetFriendly,
+      extra_amenities: [],
+      is_active: isActive,
+      position: orderedAccommodations.length + 1,
+      created_at: nowIso,
+      updated_at: nowIso,
+    };
+  }, [
+    isFormOpen,
+    editingId,
+    title,
+    slug,
+    shortDescription,
+    fullDescription,
+    coverImage,
+    gallery,
+    maxGuests,
+    beds,
+    hasKitchen,
+    hasKitchenUtensils,
+    hasTv,
+    hasAc,
+    hasWifi,
+    hasBalcony,
+    hasPrivateBathroom,
+    hasBedBathLinen,
+    isPetFriendly,
+    isActive,
+    orderedAccommodations.length,
+  ]);
+
+  useEffect(() => {
+    if (!onDraftChange) return;
+
+    let previewList = orderedAccommodations;
+    if (formDraftAccommodation) {
+      if (editingId) {
+        previewList = orderedAccommodations.map((item) =>
+          item.id === editingId
+            ? { ...formDraftAccommodation, position: item.position }
+            : item,
+        );
+      } else {
+        previewList = [...orderedAccommodations, formDraftAccommodation];
+      }
+    }
+
+    const focused =
+      formDraftAccommodation ??
+      orderedAccommodations.find((item) => item.id === selectedPreviewId) ??
+      orderedAccommodations[0] ??
+      null;
+
+    onDraftChange({
+      orderedAccommodations: previewList,
+      focusedAccommodation: focused,
+      preferDetailView,
+    });
+  }, [
+    onDraftChange,
+    orderedAccommodations,
+    formDraftAccommodation,
+    editingId,
+    selectedPreviewId,
+    preferDetailView,
+  ]);
 
   const handleToggleActive = async (acc: TypedAccommodation) => {
     if (acc.id.startsWith("demo-")) return;
@@ -301,22 +483,32 @@ export function AccommodationsManager({
       <div className="rounded-2xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-bold text-brand-navy">
-            Gerenciador de Acomodações ({accommodations.length})
+            Gerenciador de Acomodações ({orderedAccommodations.length})
           </h3>
-          <p className="text-xs text-brand-navy/65">
-            Cadastre suítes, apartamentos, fotos, camas e comodidades
+          <p className="text-xs text-brand-ink-muted">
+            Defina a ordem de exibição na Landing Page (as 6 primeiras ativas
+            abrem na vitrine inicial)
           </p>
         </div>
 
         <button
           type="button"
           onClick={handleOpenNew}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-brand-navy hover:bg-brand-navy-light text-white text-xs sm:text-sm font-semibold transition-colors shrink-0"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 min-h-11 px-4 rounded-xl bg-brand-navy hover:bg-brand-navy-light text-white text-xs sm:text-sm font-semibold transition-colors shrink-0"
         >
           <Plus className="w-4 h-4 shrink-0" />
           <span>Nova Acomodação</span>
         </button>
       </div>
+
+      {orderError && (
+        <div
+          role="alert"
+          className="rounded-xl bg-white border border-brand-navy/20 p-3.5 text-xs font-semibold text-brand-navy"
+        >
+          {orderError}
+        </div>
+      )}
 
       {/* Formulário de Criação / Edição */}
       {isFormOpen && (
@@ -332,9 +524,11 @@ export function AccommodationsManager({
               type="button"
               onClick={() => {
                 setIsFormOpen(false);
+                setPreferDetailView(false);
                 resetForm();
               }}
-              className="p-2 rounded-lg bg-brand-bg border border-slate-200 text-brand-navy/70 hover:text-brand-navy"
+              aria-label="Fechar formulário de acomodação"
+              className="w-11 h-11 rounded-lg bg-brand-bg border border-slate-200 text-brand-navy/70 hover:text-brand-navy flex items-center justify-center"
             >
               <X className="w-4 h-4" />
             </button>
@@ -579,10 +773,10 @@ export function AccommodationsManager({
             </div>
           </div>
 
-          {/* 5. Fotos da Acomodação + Preview do Card em Tempo Real */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            {/* Coluna Esquerda: Upload de Capa e Galeria (Sem input de URL) */}
-            <div className="lg:col-span-7 rounded-xl bg-brand-bg border border-slate-200 p-4 space-y-5">
+          {/* 5. Fotos da Acomodação + Preview Mobile do Card em Tempo Real */}
+          <div className="grid grid-cols-1 gap-5 items-start">
+            {/* Upload de Capa e Galeria (Sem input de URL) */}
+            <div className="rounded-xl bg-brand-bg border border-slate-200 p-4 space-y-5">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-brand-navy">
                   Fotos da Acomodação
@@ -717,8 +911,8 @@ export function AccommodationsManager({
               </div>
             </div>
 
-            {/* Coluna Direita: Preview do Card da Acomodação em Tempo Real */}
-            <div className="lg:col-span-5 rounded-xl bg-brand-bg border border-slate-200 p-4 space-y-3">
+            {/* Preview do Card da Acomodação em Tempo Real (Apenas Mobile/Tablet; Desktop usa o aside oficial) */}
+            <div className="lg:hidden rounded-xl bg-brand-bg border border-slate-200 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-brand-navy">
                   Preview do Card na Landing Page
@@ -842,9 +1036,10 @@ export function AccommodationsManager({
                 type="button"
                 onClick={() => {
                   setIsFormOpen(false);
+                  setPreferDetailView(false);
                   resetForm();
                 }}
-                className="px-4 py-2.5 rounded-xl bg-brand-bg border border-slate-200 text-xs font-semibold text-brand-navy"
+                className="min-h-11 px-4 rounded-xl bg-brand-bg border border-slate-200 text-xs font-semibold text-brand-navy"
               >
                 Cancelar
               </button>
@@ -852,7 +1047,7 @@ export function AccommodationsManager({
               <button
                 type="submit"
                 disabled={isSaving}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-navy hover:bg-brand-navy-light text-white text-xs sm:text-sm font-semibold transition-colors disabled:opacity-60"
+                className="inline-flex items-center gap-2 min-h-11 px-5 rounded-xl bg-brand-navy hover:bg-brand-navy-light text-white text-xs sm:text-sm font-semibold transition-colors disabled:opacity-60"
               >
                 {isSaving ? (
                   <>
@@ -871,121 +1066,224 @@ export function AccommodationsManager({
         </form>
       )}
 
-      {/* Lista de Acomodações Cadastradas */}
+      {/* Lista de Acomodações Cadastradas com Ordenação */}
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2].map((n) => (
             <div
               key={n}
-              className="h-24 rounded-2xl bg-white border border-slate-200 animate-pulse"
+              className="h-24 rounded-2xl bg-white border border-slate-200"
             />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {accommodations.map((acc) => {
-            const isDemo = acc.id.startsWith("demo-");
-            return (
-              <div
-                key={acc.id}
-                className="rounded-2xl bg-white border border-slate-200 p-4 shadow-xs flex flex-col justify-between gap-4"
-              >
-                <div className="flex items-start gap-3.5">
-                  <div className="w-24 h-20 rounded-xl overflow-hidden bg-brand-bg border border-slate-200 shrink-0">
-                    {acc.cover_image ? (
-                      <img
-                        src={acc.cover_image}
-                        alt={acc.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-brand-navy/40">
-                        <BedDouble className="w-6 h-6" />
-                      </div>
-                    )}
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
+          {(() => {
+            let activeRank = 0;
+            return orderedAccommodations.map((acc, index) => {
+              const isDemo = acc.id.startsWith("demo-");
+              if (acc.is_active) activeRank += 1;
+              const isInTopSixShowcase = acc.is_active && activeRank <= 6;
+              const isPreviewFocused = selectedPreviewId === acc.id;
 
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="font-bold text-sm sm:text-base text-brand-navy truncate">
-                        {acc.title}
-                      </h4>
-                      {isDemo && (
-                        <span className="px-2 py-0.5 rounded-md bg-brand-bg border border-slate-200 text-[10px] font-semibold text-brand-navy/70">
-                          Exemplo
+              return (
+                <m.div
+                  key={acc.id}
+                  layout={!prefersReducedMotion}
+                  transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                  className={`rounded-2xl bg-white border p-4 shadow-xs flex flex-col justify-between gap-4 transition-colors ${
+                    isPreviewFocused
+                      ? "border-brand-navy ring-1 ring-brand-navy/20"
+                      : "border-slate-200"
+                  }`}
+                >
+                  <div className="space-y-3">
+                    {/* Barra Superior de Posição e Status na Vitrine */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="px-2 py-0.5 rounded-md bg-brand-navy text-white text-xs font-semibold tabular-nums">
+                          #{String(index + 1).padStart(2, "0")}
                         </span>
-                      )}
+                        {acc.is_active ? (
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border ${
+                              isInTopSixShowcase
+                                ? "bg-brand-green/45 border-brand-navy/15 text-brand-navy"
+                                : "bg-brand-bg border-slate-200 text-brand-ink-muted"
+                            }`}
+                          >
+                            {isInTopSixShowcase
+                              ? "Vitrine inicial (Top 6)"
+                              : "Botão Ver todas"}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md bg-brand-bg border border-slate-200 text-[11px] font-semibold text-brand-ink-muted">
+                            Oculta no site
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Controles de Reordenação */}
+                      <div className="flex items-center gap-1">
+                        {index > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => void handleMove(index, "top")}
+                            disabled={reorderMutation.isPending}
+                            title="Enviar para 1ª posição"
+                            aria-label={`Mover ${acc.title} para a primeira posição`}
+                            className="h-9 px-2 rounded-lg bg-brand-bg border border-slate-200 text-brand-navy hover:bg-brand-surface text-[11px] font-semibold inline-flex items-center gap-1 transition-colors disabled:opacity-40"
+                          >
+                            <ChevronsUp className="w-3.5 h-3.5 shrink-0" />
+                            <span>Topo</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => void handleMove(index, "up")}
+                          disabled={index === 0 || reorderMutation.isPending}
+                          title="Subir posição"
+                          aria-label={`Subir ${acc.title}`}
+                          className="w-9 h-9 rounded-lg bg-brand-bg border border-slate-200 text-brand-navy hover:bg-brand-surface flex items-center justify-center transition-colors disabled:opacity-35"
+                        >
+                          <ArrowUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleMove(index, "down")}
+                          disabled={
+                            index === orderedAccommodations.length - 1 ||
+                            reorderMutation.isPending
+                          }
+                          title="Descer posição"
+                          aria-label={`Descer ${acc.title}`}
+                          className="w-9 h-9 rounded-lg bg-brand-bg border border-slate-200 text-brand-navy hover:bg-brand-surface flex items-center justify-center transition-colors disabled:opacity-35"
+                        >
+                          <ArrowDown className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
-                    <p className="text-xs text-brand-navy/65 flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 shrink-0" />
-                      <span>Até {acc.max_guests} pessoas</span>
-                      <span>•</span>
-                      <span>
-                        {acc.beds.map((b) => `${b.count}x ${b.type}`).join(", ")}
-                      </span>
-                    </p>
-
-                    <p className="text-xs text-brand-navy/70 line-clamp-2">
-                      {acc.short_description}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-                  <Link
-                    to={`/acomodacoes/${acc.slug}`}
-                    target="_blank"
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-brand-navy/75 hover:text-brand-navy"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>/acomodacoes/{acc.slug}</span>
-                  </Link>
-
-                  <div className="flex items-center gap-1.5">
-                    {!isDemo && (
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(acc)}
-                        className="p-2 rounded-lg bg-brand-bg border border-slate-200 text-brand-navy/75 hover:text-brand-navy"
-                        title={
-                          acc.is_active
-                            ? "Visível no site (clique para ocultar)"
-                            : "Oculta no site (clique para ativar)"
-                        }
-                      >
-                        {acc.is_active ? (
-                          <Eye className="w-4 h-4" />
+                    <div className="flex items-start gap-3.5">
+                      <div className="w-24 h-20 rounded-xl overflow-hidden bg-brand-bg border border-slate-200 shrink-0">
+                        {acc.cover_image ? (
+                          <img
+                            src={acc.cover_image}
+                            alt={acc.title}
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
-                          <EyeOff className="w-4 h-4" />
+                          <div className="w-full h-full flex items-center justify-center text-brand-navy/40">
+                            <BedDouble className="w-6 h-6" />
+                          </div>
                         )}
-                      </button>
-                    )}
+                      </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEdit(acc)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-navy text-white text-xs font-semibold hover:bg-brand-navy-light transition-colors"
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-bold text-sm sm:text-base text-brand-navy truncate">
+                            {acc.title}
+                          </h4>
+                          {isDemo && (
+                            <span className="px-2 py-0.5 rounded-md bg-brand-bg border border-slate-200 text-[10px] font-semibold text-brand-ink-muted">
+                              Exemplo
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-brand-ink-secondary flex items-center gap-1.5 flex-wrap">
+                          <Users className="w-3.5 h-3.5 shrink-0" />
+                          <span>Até {acc.max_guests} pessoas</span>
+                          <span>•</span>
+                          <span>
+                            {acc.beds
+                              .map((b) => `${b.count}x ${b.type}`)
+                              .join(", ")}
+                          </span>
+                        </p>
+
+                        <p className="text-xs text-brand-ink-muted line-clamp-2">
+                          {acc.short_description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                    <Link
+                      to={`/acomodacoes/${acc.slug}`}
+                      target="_blank"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-brand-ink-secondary hover:text-brand-navy min-w-0 truncate"
                     >
-                      <Edit3 className="w-3.5 h-3.5" />
-                      <span>{isDemo ? "Personalizar" : "Editar"}</span>
-                    </button>
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">/acomodacoes/{acc.slug}</span>
+                    </Link>
 
-                    {!isDemo && (
+                    <div className="flex items-center gap-1.5">
                       <button
                         type="button"
-                        onClick={() => handleDelete(acc)}
-                        className="p-2 rounded-lg bg-brand-bg border border-slate-200 text-brand-navy/75 hover:text-brand-navy"
-                        title="Excluir acomodação"
+                        onClick={() => {
+                          setSelectedPreviewId(acc.id);
+                          setPreferDetailView(true);
+                        }}
+                        title="Visualizar página no painel lateral"
+                        aria-label={`Visualizar ${acc.title} no preview lateral`}
+                        className="hidden lg:inline-flex items-center gap-1 h-9 px-2.5 rounded-lg bg-brand-bg border border-slate-200 text-brand-navy hover:bg-brand-surface text-xs font-semibold transition-colors"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Eye className="w-3.5 h-3.5 shrink-0" />
+                        <span>Preview</span>
                       </button>
-                    )}
+
+                      {!isDemo && (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleActive(acc)}
+                          className="w-9 h-9 rounded-lg bg-brand-bg border border-slate-200 text-brand-ink-secondary hover:text-brand-navy flex items-center justify-center"
+                          title={
+                            acc.is_active
+                              ? "Visível no site (clique para ocultar)"
+                              : "Oculta no site (clique para ativar)"
+                          }
+                          aria-label={
+                            acc.is_active
+                              ? `Ocultar ${acc.title}`
+                              : `Ativar ${acc.title}`
+                          }
+                        >
+                          {acc.is_active ? (
+                            <Eye className="w-4 h-4" />
+                          ) : (
+                            <EyeOff className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(acc)}
+                        className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-brand-navy text-white text-xs font-semibold hover:bg-brand-navy-light transition-colors"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>{isDemo ? "Personalizar" : "Editar"}</span>
+                      </button>
+
+                      {!isDemo && (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(acc)}
+                          className="w-9 h-9 rounded-lg bg-brand-bg border border-slate-200 text-brand-ink-secondary hover:text-brand-navy flex items-center justify-center"
+                          title="Excluir acomodação"
+                          aria-label={`Excluir ${acc.title}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
+                </m.div>
+              );
+            });
+          })()}
         </div>
       )}
     </div>

@@ -16,10 +16,11 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import type {
   AboutHighlightItem,
   HeroSlideItem,
+  LandingPageMetadata,
   TypedBusinessInfo,
 } from "../../@types/database.types";
 import { useSaveBusinessInfo } from "../../hooks/usePortalData";
@@ -33,16 +34,21 @@ import {
   formatPhoneMask,
 } from "../../utils/embedUrl";
 import { InstagramIcon, WhatsAppIcon } from "../../utils/iconMapper";
+import type { LandingDraftPreview } from "./AdminLivePreviewAside";
 
 interface LandingPageEditorProps {
   businessInfo: TypedBusinessInfo | undefined;
+  onDraftChange?: (draft: LandingDraftPreview) => void;
 }
 
 function formatChapterNumber(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-export function LandingPageEditor({ businessInfo }: LandingPageEditorProps) {
+export function LandingPageEditor({
+  businessInfo,
+  onDraftChange,
+}: LandingPageEditorProps) {
   const saveMutation = useSaveBusinessInfo();
 
   const initialMeta = businessInfo?.metadata ?? DEFAULT_BUSINESS_METADATA;
@@ -243,6 +249,46 @@ export function LandingPageEditor({ businessInfo }: LandingPageEditorProps) {
     heroSlides.length > 0 ? Math.min(previewSlideIndex, heroSlides.length - 1) : 0;
   const activePreviewSlide = heroSlides[safePreviewIndex] ?? null;
 
+  const draftLanding: LandingPageMetadata = useMemo(
+    () => ({
+      hero_slides: heroSlides,
+      about: {
+        badge: aboutBadge,
+        title: aboutTitle,
+        description: aboutDescription,
+        secondary_description: aboutSecondaryDescription,
+        image_url: aboutImageUrl,
+        highlights: aboutHighlights,
+      },
+      footer: {
+        company_name: companyName || "Pousada Moradas do Gabriel",
+        cnpj,
+        check_in_out_info: checkInOutInfo,
+        copyright_note: copyrightNote || "Todos os direitos reservados.",
+      },
+    }),
+    [
+      heroSlides,
+      aboutBadge,
+      aboutTitle,
+      aboutDescription,
+      aboutSecondaryDescription,
+      aboutImageUrl,
+      aboutHighlights,
+      companyName,
+      cnpj,
+      checkInOutInfo,
+      copyrightNote,
+    ],
+  );
+
+  useEffect(() => {
+    onDraftChange?.({
+      landing: draftLanding,
+      activeSlideIndex: safePreviewIndex,
+    });
+  }, [onDraftChange, draftLanding, safePreviewIndex]);
+
   const maskedWhatsapp = formatPhoneMask(initialMeta.contacts.whatsapp);
   const maskedPhone = formatPhoneMask(initialMeta.contacts.phone);
   const maskedInstagram = formatInstagramMask(initialMeta.contacts.instagram);
@@ -329,8 +375,8 @@ export function LandingPageEditor({ businessInfo }: LandingPageEditorProps) {
           </button>
         </div>
 
-        {/* PREVIEW DO PALCO HERO EM TEMPO REAL */}
-        <div className="rounded-2xl bg-brand-surface border border-brand-navy/10 p-3.5 sm:p-4 space-y-3">
+        {/* PREVIEW DO PALCO HERO EM TEMPO REAL (Mobile / Tablet) */}
+        <div className="lg:hidden rounded-2xl bg-brand-surface border border-brand-navy/10 p-3.5 sm:p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-navy">
               <Eye className="w-4 h-4" />
@@ -739,8 +785,8 @@ export function LandingPageEditor({ businessInfo }: LandingPageEditorProps) {
           </div>
         </div>
 
-        {/* PREVIEW EDITORIAL EM TEMPO REAL */}
-        <div className="rounded-2xl bg-brand-surface border border-brand-navy/10 p-3.5 sm:p-5 space-y-4">
+        {/* PREVIEW EDITORIAL EM TEMPO REAL (Mobile / Tablet) */}
+        <div className="lg:hidden rounded-2xl bg-brand-surface border border-brand-navy/10 p-3.5 sm:p-5 space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-navy">
               <Eye className="w-4 h-4" />
@@ -1016,8 +1062,8 @@ export function LandingPageEditor({ businessInfo }: LandingPageEditorProps) {
           </div>
         </div>
 
-        {/* PREVIEW DO RODAPÉ EM TEMPO REAL */}
-        <div className="rounded-2xl bg-brand-surface border border-brand-navy/10 p-3.5 sm:p-5 space-y-3">
+        {/* PREVIEW DO RODAPÉ EM TEMPO REAL (Mobile / Tablet) */}
+        <div className="lg:hidden rounded-2xl bg-brand-surface border border-brand-navy/10 p-3.5 sm:p-5 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-navy">
               <Eye className="w-4 h-4" />

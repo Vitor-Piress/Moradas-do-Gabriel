@@ -7,9 +7,17 @@ import {
   Loader2,
   LogOut,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import type { LinkRow } from "../../@types/database.types";
 import { AccommodationsManager } from "../../components/admin/AccommodationsManager";
+import {
+  AdminLivePreviewAside,
+  type AccommodationDraftPreview,
+  type AdminSection,
+  type GuideDraftPreview,
+  type LandingDraftPreview,
+} from "../../components/admin/AdminLivePreviewAside";
 import { AnalyticsOverview } from "../../components/admin/AnalyticsOverview";
 import { GuestGuideEditor } from "../../components/admin/GuestGuideEditor";
 import { LandingPageEditor } from "../../components/admin/LandingPageEditor";
@@ -21,8 +29,10 @@ import {
   useAnalyticsSummary,
   useBusinessInfo,
 } from "../../hooks/usePortalData";
-
-type AdminSection = "accommodations" | "landing" | "links" | "guide";
+import {
+  DEFAULT_BUSINESS_METADATA,
+  DEFAULT_LANDING_METADATA,
+} from "../../services";
 
 export function AdminDashboard() {
   const navigate = useNavigate();
@@ -42,6 +52,48 @@ export function AdminDashboard() {
     refetch: refetchAnalytics,
   } = useAnalyticsSummary();
 
+  // Estados de rascunho em tempo real para o painel lateral oficial (<aside> Desktop)
+  const [accommodationsDraft, setAccommodationsDraft] =
+    useState<AccommodationDraftPreview | null>(null);
+  const [landingDraft, setLandingDraft] =
+    useState<LandingDraftPreview | null>(null);
+  const [linksDraft, setLinksDraft] = useState<LinkRow[] | null>(null);
+  const [guideDraft, setGuideDraft] = useState<GuideDraftPreview | null>(null);
+
+  const effectiveAccommodationsDraft = useMemo<AccommodationDraftPreview>(
+    () =>
+      accommodationsDraft ?? {
+        orderedAccommodations: accommodations,
+        focusedAccommodation: accommodations[0] ?? null,
+        preferDetailView: false,
+      },
+    [accommodationsDraft, accommodations],
+  );
+
+  const effectiveLandingDraft = useMemo<LandingDraftPreview>(
+    () =>
+      landingDraft ?? {
+        landing: businessInfo?.metadata.landing ?? DEFAULT_LANDING_METADATA,
+        activeSlideIndex: 0,
+      },
+    [landingDraft, businessInfo],
+  );
+
+  const effectiveLinksDraft = useMemo<LinkRow[]>(
+    () => linksDraft ?? links,
+    [linksDraft, links],
+  );
+
+  const effectiveGuideDraft = useMemo<GuideDraftPreview>(
+    () =>
+      guideDraft ?? {
+        content: businessInfo?.content ?? "",
+        metadata: businessInfo?.metadata ?? DEFAULT_BUSINESS_METADATA,
+        focusedPlaceIndex: 0,
+      },
+    [guideDraft, businessInfo],
+  );
+
   const handleSignOut = async () => {
     await signOut();
     navigate("/login", { replace: true });
@@ -51,7 +103,7 @@ export function AdminDashboard() {
     <div className="min-h-screen bg-brand-bg text-brand-navy pb-16">
       {/* Topbar do Painel Admin */}
       <header className="bg-white border-b border-brand-navy/10 sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2.5">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div className="w-10 h-10 rounded-xl bg-white border border-brand-navy/10 p-1.5 flex items-center justify-center shrink-0">
               <img
@@ -117,7 +169,7 @@ export function AdminDashboard() {
       </header>
 
       {/* Conteúdo Principal */}
-      <main className="max-w-5xl mx-auto px-4 pt-6 space-y-6">
+      <main className="max-w-[1440px] mx-auto px-4 sm:px-6 pt-6 space-y-6">
         {/* 1. Resumo de Analytics */}
         <AnalyticsOverview
           summary={analytics}
@@ -182,44 +234,79 @@ export function AdminDashboard() {
             </button>
           </div>
 
-          {activeSection === "accommodations" ? (
-            <AccommodationsManager
-              accommodations={accommodations}
-              isLoading={isLoadingAccommodations}
-            />
-          ) : activeSection === "landing" ? (
-            isLoadingBusiness ? (
-              <div className="rounded-2xl bg-white border border-brand-navy/10 p-12 flex flex-col items-center justify-center text-brand-navy shadow-xs">
-                <Loader2 className="w-6 h-6 animate-spin mb-2" />
-                <p className="text-sm font-medium text-brand-ink-secondary">
-                  Carregando dados da Landing Page...
-                </p>
+          {/* Grid Desktop: Editores Persistentes (Esquerda) + Aside Oficial Sticky (Direita) */}
+          <div className="lg:grid lg:grid-cols-12 lg:gap-7 items-start">
+            <div className="lg:col-span-7 min-w-0">
+              {/* Todas as abas ficam montadas via display CSS para nunca perder edições não salvas ao trocar de aba */}
+              <div
+                className={
+                  activeSection === "accommodations" ? "block" : "hidden"
+                }
+              >
+                <AccommodationsManager
+                  accommodations={accommodations}
+                  isLoading={isLoadingAccommodations}
+                  onDraftChange={setAccommodationsDraft}
+                />
               </div>
-            ) : (
-              <LandingPageEditor
-                key={`landing-${businessInfo?.updated_at ?? "default"}`}
+
+              <div className={activeSection === "landing" ? "block" : "hidden"}>
+                {isLoadingBusiness && !businessInfo ? (
+                  <div className="rounded-2xl bg-white border border-brand-navy/10 p-12 flex flex-col items-center justify-center text-brand-navy shadow-xs">
+                    <Loader2 className="w-6 h-6 animate-spin mb-2" />
+                    <p className="text-sm font-medium text-brand-ink-secondary">
+                      Carregando dados da Landing Page...
+                    </p>
+                  </div>
+                ) : (
+                  <LandingPageEditor
+                    businessInfo={businessInfo}
+                    onDraftChange={setLandingDraft}
+                  />
+                )}
+              </div>
+
+              <div className={activeSection === "links" ? "block" : "hidden"}>
+                <LinksManager
+                  links={links}
+                  isLoading={isLoadingLinks}
+                  clicksByLinkId={analytics?.clicksByLinkId ?? {}}
+                  onDraftChange={setLinksDraft}
+                />
+              </div>
+
+              <div className={activeSection === "guide" ? "block" : "hidden"}>
+                {isLoadingBusiness && !businessInfo ? (
+                  <div className="rounded-2xl bg-white border border-brand-navy/10 p-12 flex flex-col items-center justify-center text-brand-navy shadow-xs">
+                    <Loader2 className="w-6 h-6 animate-spin mb-2" />
+                    <p className="text-sm font-medium text-brand-ink-secondary">
+                      Carregando dados do Guia do Hóspede...
+                    </p>
+                  </div>
+                ) : (
+                  <GuestGuideEditor
+                    businessInfo={businessInfo}
+                    onDraftChange={setGuideDraft}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Painel Lateral Oficial em Tempo Real (Apenas Desktop lg+) */}
+            <aside
+              aria-label="Visualização oficial em tempo real"
+              className="hidden lg:block lg:col-span-5 lg:sticky lg:top-20 min-w-0"
+            >
+              <AdminLivePreviewAside
+                activeSection={activeSection}
+                accommodationsDraft={effectiveAccommodationsDraft}
+                landingDraft={effectiveLandingDraft}
+                linksDraft={effectiveLinksDraft}
+                guideDraft={effectiveGuideDraft}
                 businessInfo={businessInfo}
               />
-            )
-          ) : activeSection === "links" ? (
-            <LinksManager
-              links={links}
-              isLoading={isLoadingLinks}
-              clicksByLinkId={analytics?.clicksByLinkId ?? {}}
-            />
-          ) : isLoadingBusiness ? (
-            <div className="rounded-2xl bg-white border border-brand-navy/10 p-12 flex flex-col items-center justify-center text-brand-navy shadow-xs">
-              <Loader2 className="w-6 h-6 animate-spin mb-2" />
-              <p className="text-sm font-medium text-brand-ink-secondary">
-                Carregando dados do Guia do Hóspede...
-              </p>
-            </div>
-          ) : (
-            <GuestGuideEditor
-              key={businessInfo?.updated_at ?? "default"}
-              businessInfo={businessInfo}
-            />
-          )}
+            </aside>
+          </div>
         </div>
       </main>
     </div>

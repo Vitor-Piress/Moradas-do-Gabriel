@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
@@ -41,21 +41,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  const verifiedUserIdRef = useRef<string | null>(null);
+  const isAdminRef = useRef(false);
+
   useEffect(() => {
     let isMounted = true;
 
-    const resolveSession = async (currentSession: Session | null) => {
+    const resolveSession = async (
+      currentSession: Session | null,
+      options?: { silent?: boolean },
+    ) => {
       if (!isMounted) return;
       setSession(currentSession);
 
       if (!currentSession) {
+        verifiedUserIdRef.current = null;
+        isAdminRef.current = false;
         setIsAdmin(false);
+        setIsLoading(false);
+        return;
+      }
+
+      const isSameVerifiedUser =
+        verifiedUserIdRef.current === currentSession.user.id &&
+        isAdminRef.current;
+
+      if (options?.silent && isSameVerifiedUser) {
         setIsLoading(false);
         return;
       }
 
       const adminStatus = await checkIsAdmin(currentSession);
       if (!isMounted) return;
+      verifiedUserIdRef.current = adminStatus ? currentSession.user.id : null;
+      isAdminRef.current = adminStatus;
       setIsAdmin(adminStatus);
       setIsLoading(false);
     };
@@ -67,6 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       )
       .catch(() => {
         if (isMounted) {
+          verifiedUserIdRef.current = null;
+          isAdminRef.current = false;
           setIsAdmin(false);
           setIsLoading(false);
         }
@@ -74,7 +95,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
+      const incomingUserId = newSession?.user?.id ?? null;
+      const isAlreadyVerifiedSameUser =
+        Boolean(incomingUserId) &&
+        incomingUserId === verifiedUserIdRef.current &&
+        isAdminRef.current;
+
+      // Ao trocar de aba no navegador, o Supabase dispara TOKEN_REFRESHED / SIGNED_IN para o mesmo usuário.
+      // Mantemos `isLoading` em `false` para nunca desmontar os formulários do /admin e perder edições não salvas.
+      if (isAlreadyVerifiedSameUser || event === "TOKEN_REFRESHED") {
+        void resolveSession(newSession, { silent: true });
+        return;
+      }
+
       setIsLoading(true);
       void resolveSession(newSession);
     });
@@ -86,6 +120,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    verifiedUserIdRef.current = null;
+    isAdminRef.current = false;
     await supabase.auth.signOut();
     setSession(null);
     setIsAdmin(false);

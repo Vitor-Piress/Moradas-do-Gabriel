@@ -12,7 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { LinkRow } from "../../@types/database.types";
 import { useLinkMutations } from "../../hooks/usePortalData";
 import { AVAILABLE_LINK_ICONS, resolveLinkIcon } from "../../utils/iconMapper";
@@ -21,12 +21,14 @@ interface LinksManagerProps {
   links: LinkRow[];
   isLoading: boolean;
   clicksByLinkId: Record<string, number>;
+  onDraftChange?: (draftLinks: LinkRow[]) => void;
 }
 
 export function LinksManager({
   links,
   isLoading,
   clicksByLinkId,
+  onDraftChange,
 }: LinksManagerProps) {
   const { createMutation, updateMutation, deleteMutation, reorderMutation } =
     useLinkMutations();
@@ -43,6 +45,37 @@ export function LinksManager({
   const [editUrl, setEditUrl] = useState("");
   const [editIcon, setEditIcon] = useState("link");
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  const draftLinks = useMemo(() => {
+    const mapped = links.map((item) =>
+      editingId === item.id
+        ? {
+            ...item,
+            title: editTitle || item.title,
+            url: editUrl || item.url,
+            icon: editIcon || item.icon,
+          }
+        : item,
+    );
+
+    if (title.trim()) {
+      mapped.push({
+        id: "draft-new-link",
+        title: title.trim(),
+        url: url.trim() || "#",
+        icon,
+        is_active: isActive,
+        position: mapped.length + 1,
+        created_at: "",
+      });
+    }
+
+    return mapped;
+  }, [links, editingId, editTitle, editUrl, editIcon, title, url, icon, isActive]);
+
+  useEffect(() => {
+    onDraftChange?.(draftLinks);
+  }, [onDraftChange, draftLinks]);
 
   const showTempFeedback = (msg: string) => {
     setFeedback(msg);

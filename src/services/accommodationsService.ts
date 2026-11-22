@@ -394,3 +394,22 @@ export async function deleteAccommodation(id: string): Promise<void> {
     throw error;
   }
 }
+
+export async function reorderAccommodations(
+  orderedItems: Array<{ id: string; position: number }>,
+): Promise<void> {
+  const updates = orderedItems.map(({ id, position }) =>
+    supabase.from("accommodations").update({ position }).eq("id", id),
+  );
+
+  const results = await Promise.all(updates);
+  const firstError = results.find((r) => r.error)?.error;
+
+  if (firstError) {
+    console.error(
+      "[accommodationsService] Erro ao reordenar acomodações:",
+      firstError.message,
+    );
+    throw firstError;
+  }
+}

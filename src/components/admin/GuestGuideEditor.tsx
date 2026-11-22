@@ -1,4 +1,6 @@
 import {
+  ArrowDown,
+  ArrowUp,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -20,7 +22,8 @@ import {
   Utensils,
   Wifi,
 } from "lucide-react";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { m, useReducedMotion } from "motion/react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import type {
   BusinessInfoMetadata,
   PlaceTip,
@@ -37,9 +40,20 @@ import {
   formatInstagramMask,
   formatPhoneMask,
 } from "../../utils/embedUrl";
+import type { GuideDraftPreview } from "./AdminLivePreviewAside";
 
 interface GuestGuideEditorProps {
   businessInfo: TypedBusinessInfo | undefined;
+  onDraftChange?: (draft: GuideDraftPreview) => void;
+}
+
+interface EditableRuleItem {
+  id: string;
+  text: string;
+}
+
+interface EditablePlaceTip extends PlaceTip {
+  _uiId: string;
 }
 
 const PLACE_CATEGORY_OPTIONS = [
@@ -87,7 +101,11 @@ function getPreviewCtaLabel(link: string): string {
   return "Conhecer local";
 }
 
-export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
+export function GuestGuideEditor({
+  businessInfo,
+  onDraftChange,
+}: GuestGuideEditorProps) {
+  const prefersReducedMotion = useReducedMotion();
   const saveMutation = useSaveBusinessInfo();
 
   const initialMeta: BusinessInfoMetadata =
@@ -155,13 +173,21 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
   const [embedUrl, setEmbedUrl] = useState(initialMeta.location.embed_url);
   const [iframeExtractedNotice, setIframeExtractedNotice] = useState(false);
 
-  // Regras da Hospedagem
-  const [rules, setRules] = useState<string[]>(initialMeta.rules);
+  // Regras da Hospedagem (com ID estável para reordenar sem perder foco ou animação)
+  const [ruleItems, setRuleItems] = useState<EditableRuleItem[]>(() =>
+    initialMeta.rules.map((text, idx) => ({
+      id: `rule-${idx}-${text.slice(0, 10)}`,
+      text,
+    })),
+  );
   const [newRule, setNewRule] = useState("");
 
-  // Dicas de Lugares
-  const [placesTips, setPlacesTips] = useState<PlaceTip[]>(
-    initialMeta.places_tips,
+  // Dicas de Lugares (com ID estável para reordenar)
+  const [placesTips, setPlacesTips] = useState<EditablePlaceTip[]>(() =>
+    initialMeta.places_tips.map((place, idx) => ({
+      ...place,
+      _uiId: `place-${idx}-${place.name.slice(0, 10)}`,
+    })),
   );
   const [previewPlaceIndex, setPreviewPlaceIndex] = useState<number | "new">(0);
   const [previewImageIdx, setPreviewImageIdx] = useState(0);
@@ -218,19 +244,44 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
     setWifiNetworks((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleMoveWifiNetwork = (index: number, delta: -1 | 1) => {
+    const target = index + delta;
+    if (target < 0 || target >= wifiNetworks.length) return;
+    setWifiNetworks((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(index, 1);
+      next.splice(target, 0, moved);
+      return next;
+    });
+  };
+
   // Funções de Regras
   const handleAddRule = () => {
     if (!newRule.trim()) return;
-    setRules((prev) => [...prev, newRule.trim()]);
+    const id = `rule-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    setRuleItems((prev) => [...prev, { id, text: newRule.trim() }]);
     setNewRule("");
   };
 
   const handleUpdateRule = (index: number, value: string) => {
-    setRules((prev) => prev.map((r, i) => (i === index ? value : r)));
+    setRuleItems((prev) =>
+      prev.map((r, i) => (i === index ? { ...r, text: value } : r)),
+    );
   };
 
   const handleRemoveRule = (index: number) => {
-    setRules((prev) => prev.filter((_, i) => i !== index));
+    setRuleItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMoveRule = (index: number, delta: -1 | 1) => {
+    const target = index + delta;
+    if (target < 0 || target >= ruleItems.length) return;
+    setRuleItems((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(index, 1);
+      next.splice(target, 0, moved);
+      return next;
+    });
   };
 
   // Funções de Dicas de Lugares
@@ -246,7 +297,8 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
 
   const handleAddPlace = () => {
     if (!newPlaceName.trim()) return;
-    const item: PlaceTip = {
+    const item: EditablePlaceTip = {
+      _uiId: `place-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name: newPlaceName.trim(),
       category: newPlaceCategory || "Gastronomia",
       description: newPlaceDescription.trim(),
@@ -265,6 +317,22 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
     setNewPlaceLink("");
     setNewPlaceEmbedUrl("");
     setNewPlaceImages([]);
+  };
+
+  const handleMovePlace = (index: number, delta: -1 | 1) => {
+    const target = index + delta;
+    if (target < 0 || target >= placesTips.length) return;
+    setPlacesTips((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(index, 1);
+      next.splice(target, 0, moved);
+      return next;
+    });
+    if (previewPlaceIndex === index) {
+      setPreviewPlaceIndex(target);
+    } else if (previewPlaceIndex === target) {
+      setPreviewPlaceIndex(index);
+    }
   };
 
   const handleUpdatePlace = (
@@ -381,6 +449,81 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
     });
   };
 
+  const draftMetadata: BusinessInfoMetadata = useMemo(
+    () => ({
+      wifi_networks: wifiNetworks,
+      wifi: {
+        ssid: wifiNetworks[0]?.ssid ?? "",
+        password: wifiNetworks[0]?.password ?? "",
+      },
+      location: {
+        address,
+        maps_url: mapsUrl,
+        waze_url: wazeUrl,
+        embed_url: extractEmbedUrl(embedUrl),
+        instructions,
+      },
+      rules: ruleItems.map((r) => r.text),
+      places_tips: placesTips.map((place) => ({
+        name: place.name,
+        category: place.category,
+        description: place.description,
+        link: place.link,
+        embed_url: place.embed_url,
+        image_url: place.image_url,
+        images: place.images,
+      })),
+      contacts: {
+        whatsapp: extractPhoneDigits(whatsapp),
+        phone: extractPhoneDigits(phone),
+        instagram: extractInstagramHandle(instagram),
+      },
+      landing: initialMeta.landing,
+    }),
+    [
+      wifiNetworks,
+      address,
+      mapsUrl,
+      wazeUrl,
+      embedUrl,
+      instructions,
+      ruleItems,
+      placesTips,
+      whatsapp,
+      phone,
+      instagram,
+      initialMeta.landing,
+    ],
+  );
+
+  useEffect(() => {
+    onDraftChange?.({
+      content: welcomeContent,
+      metadata: draftMetadata,
+      focusedPlaceIndex: previewPlaceIndex,
+      newPlaceDraft: {
+        name: newPlaceName.trim(),
+        category: newPlaceCategory || "Gastronomia",
+        description: newPlaceDescription.trim(),
+        link: newPlaceLink.trim(),
+        embed_url: extractEmbedUrl(newPlaceEmbedUrl),
+        image_url: newPlaceImages[0] ?? "",
+        images: newPlaceImages,
+      },
+    });
+  }, [
+    onDraftChange,
+    welcomeContent,
+    draftMetadata,
+    previewPlaceIndex,
+    newPlaceName,
+    newPlaceCategory,
+    newPlaceDescription,
+    newPlaceLink,
+    newPlaceEmbedUrl,
+    newPlaceImages,
+  ]);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSaveError(null);
@@ -421,7 +564,7 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
             embed_url: cleanedEmbedUrl,
             instructions: instructions.trim(),
           },
-          rules: rules.map((r) => r.trim()).filter(Boolean),
+          rules: ruleItems.map((r) => r.text.trim()).filter(Boolean),
           places_tips: placesTips
             .map((p) => {
               const imgs = getPlaceImagesList(p);
@@ -627,22 +770,52 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
         ) : (
           <div className="space-y-3">
             {wifiNetworks.map((network, idx) => (
-              <div
+              <m.div
                 key={network.id || idx}
+                layout={!prefersReducedMotion}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                 className="rounded-xl bg-brand-bg border border-slate-200 p-3.5 sm:p-4 space-y-3"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-brand-navy">
-                    Rede Wi-Fi #{idx + 1}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveWifiNetwork(idx)}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-brand-navy/70 hover:text-brand-navy px-2.5 py-1 rounded-lg bg-white border border-slate-200 transition-colors shrink-0"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                    <span>Remover</span>
-                  </button>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-md bg-brand-navy text-white text-xs font-semibold tabular-nums">
+                      #{String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <span className="text-xs font-bold text-brand-navy">
+                      Rede Wi-Fi {idx === 0 ? "· Principal" : ""}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleMoveWifiNetwork(idx, -1)}
+                      disabled={idx === 0}
+                      title="Subir rede Wi-Fi"
+                      aria-label={`Subir rede Wi-Fi ${idx + 1}`}
+                      className="w-9 h-9 rounded-lg bg-white border border-slate-200 text-brand-navy hover:bg-brand-surface flex items-center justify-center transition-colors disabled:opacity-35"
+                    >
+                      <ArrowUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveWifiNetwork(idx, 1)}
+                      disabled={idx === wifiNetworks.length - 1}
+                      title="Descer rede Wi-Fi"
+                      aria-label={`Descer rede Wi-Fi ${idx + 1}`}
+                      className="w-9 h-9 rounded-lg bg-white border border-slate-200 text-brand-navy hover:bg-brand-surface flex items-center justify-center transition-colors disabled:opacity-35"
+                    >
+                      <ArrowDown className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveWifiNetwork(idx)}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-brand-ink-secondary hover:text-brand-navy h-9 px-2.5 rounded-lg bg-white border border-slate-200 transition-colors shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                      <span>Remover</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -691,7 +864,7 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
                     />
                   </div>
                 </div>
-              </div>
+              </m.div>
             ))}
           </div>
         )}
@@ -817,10 +990,11 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
           </div>
           <div className="min-w-0">
             <h4 className="text-base font-bold text-brand-navy break-words">
-              Regras da Hospedagem ({rules.length})
+              Regras da Hospedagem ({ruleItems.length})
             </h4>
-            <p className="text-xs text-brand-navy/65 break-words">
-              Adicione, edite ou remova as orientações da estadia
+            <p className="text-xs text-brand-ink-muted break-words">
+              Reordene, edite ou remova as orientações. A numeração (01, 02,
+              03...) atualiza automaticamente.
             </p>
           </div>
         </div>
@@ -843,38 +1017,64 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
           <button
             type="button"
             onClick={handleAddRule}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-navy text-white text-xs sm:text-sm font-semibold hover:bg-brand-navy-light transition-colors shrink-0"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 min-h-11 px-4 rounded-xl bg-brand-navy text-white text-xs sm:text-sm font-semibold hover:bg-brand-navy-light transition-colors shrink-0"
           >
             <Plus className="w-4 h-4 shrink-0" />
             <span>Adicionar Regra</span>
           </button>
         </div>
 
-        {/* Lista de Regras */}
+        {/* Lista de Regras com Ordenação e Numeração Dinâmica */}
         <div className="space-y-2.5">
-          {rules.map((rule, idx) => (
-            <div
-              key={idx}
+          {ruleItems.map((ruleItem, idx) => (
+            <m.div
+              key={ruleItem.id}
+              layout={!prefersReducedMotion}
+              transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
               className="flex items-center gap-2 rounded-xl bg-brand-bg border border-slate-200 p-2.5"
             >
-              <span className="w-6 h-6 rounded-md bg-white border border-slate-200 text-brand-navy text-xs font-bold flex items-center justify-center shrink-0">
-                {idx + 1}
+              <span className="w-8 h-9 rounded-lg bg-brand-navy text-white text-xs font-semibold tabular-nums flex items-center justify-center shrink-0">
+                {String(idx + 1).padStart(2, "0")}
               </span>
               <input
                 type="text"
-                value={rule}
+                value={ruleItem.text}
                 onChange={(e) => handleUpdateRule(idx, e.target.value)}
-                className="flex-1 min-w-0 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-sm text-brand-navy focus:outline-none focus:border-brand-navy"
+                aria-label={`Regra ${String(idx + 1).padStart(2, "0")}`}
+                className="flex-1 min-w-0 h-9 px-3 rounded-lg bg-white border border-slate-200 text-sm text-brand-navy focus:outline-none focus:border-brand-navy"
               />
-              <button
-                type="button"
-                onClick={() => handleRemoveRule(idx)}
-                title="Remover regra"
-                className="p-2 rounded-lg bg-white border border-slate-200 text-brand-navy/70 hover:bg-slate-50 hover:text-brand-navy transition-colors shrink-0"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleMoveRule(idx, -1)}
+                  disabled={idx === 0}
+                  title="Subir regra"
+                  aria-label={`Subir regra ${idx + 1}`}
+                  className="w-9 h-9 rounded-lg bg-white border border-slate-200 text-brand-navy hover:bg-brand-surface flex items-center justify-center transition-colors disabled:opacity-35"
+                >
+                  <ArrowUp className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleMoveRule(idx, 1)}
+                  disabled={idx === ruleItems.length - 1}
+                  title="Descer regra"
+                  aria-label={`Descer regra ${idx + 1}`}
+                  className="w-9 h-9 rounded-lg bg-white border border-slate-200 text-brand-navy hover:bg-brand-surface flex items-center justify-center transition-colors disabled:opacity-35"
+                >
+                  <ArrowDown className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveRule(idx)}
+                  title="Remover regra"
+                  aria-label={`Remover regra ${idx + 1}`}
+                  className="w-9 h-9 rounded-lg bg-white border border-slate-200 text-brand-ink-secondary hover:bg-slate-50 hover:text-brand-navy flex items-center justify-center transition-colors shrink-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </m.div>
           ))}
         </div>
       </section>
@@ -931,7 +1131,7 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
           const hasBothPreviewMedia = hasPhotos && hasMap;
 
           return (
-            <div className="rounded-2xl bg-brand-bg border border-slate-200 p-3.5 sm:p-4 space-y-3">
+            <div className="lg:hidden rounded-2xl bg-brand-bg border border-slate-200 p-3.5 sm:p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-navy">
                   <Eye className="w-4 h-4" />
@@ -1263,15 +1463,17 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
           )}
         </div>
 
-        {/* Lista Editável de Lugares */}
+        {/* Lista Editável de Lugares com Ordenação */}
         <div className="space-y-3">
           {placesTips.map((place, idx) => {
             const placeImgs = getPlaceImagesList(place);
             const isSelected = previewPlaceIndex === idx;
 
             return (
-              <div
-                key={idx}
+              <m.div
+                key={place._uiId}
+                layout={!prefersReducedMotion}
+                transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
                 onClick={() => {
                   setPreviewPlaceIndex(idx);
                   setPreviewImageIdx(0);
@@ -1284,20 +1486,50 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-md bg-brand-navy text-white text-xs font-semibold tabular-nums">
+                      #{String(idx + 1).padStart(2, "0")}
+                    </span>
                     <span className="text-xs font-bold text-brand-navy">
-                      Dica #{idx + 1} • {place.name || "Sem título"}
+                      {place.name || "Sem título"}
                     </span>
                     {isSelected && (
-                      <span className="px-2 py-0.5 rounded-md bg-brand-navy text-white text-[10px] font-semibold">
-                        Visualizando no Preview
+                      <span className="px-2 py-0.5 rounded-md bg-white border border-brand-navy/20 text-brand-navy text-[10px] font-semibold">
+                        Em foco no preview
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMovePlace(idx, -1);
+                      }}
+                      disabled={idx === 0}
+                      title="Subir local na curadoria"
+                      aria-label={`Subir ${place.name || `dica ${idx + 1}`}`}
+                      className="w-9 h-9 rounded-lg bg-white border border-slate-200 text-brand-navy hover:bg-brand-surface flex items-center justify-center transition-colors disabled:opacity-35"
+                    >
+                      <ArrowUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMovePlace(idx, 1);
+                      }}
+                      disabled={idx === placesTips.length - 1}
+                      title="Descer local na curadoria"
+                      aria-label={`Descer ${place.name || `dica ${idx + 1}`}`}
+                      className="w-9 h-9 rounded-lg bg-white border border-slate-200 text-brand-navy hover:bg-brand-surface flex items-center justify-center transition-colors disabled:opacity-35"
+                    >
+                      <ArrowDown className="w-4 h-4" />
+                    </button>
+
                     <label
                       onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-lg bg-brand-navy text-white text-xs font-semibold cursor-pointer hover:bg-brand-navy-light transition-colors shrink-0"
+                      className="inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg bg-brand-navy text-white text-xs font-semibold cursor-pointer hover:bg-brand-navy-light transition-colors shrink-0"
                     >
                       {uploadingPlaceIndex === idx ? (
                         <>
@@ -1326,7 +1558,7 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
                         e.stopPropagation();
                         handleRemovePlace(idx);
                       }}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-brand-navy/70 hover:text-brand-navy px-2.5 py-1 rounded-lg bg-white border border-slate-200 shrink-0"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-brand-ink-secondary hover:text-brand-navy h-9 px-2.5 rounded-lg bg-white border border-slate-200 shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5 shrink-0" />
                       <span>Remover</span>
@@ -1432,7 +1664,7 @@ export function GuestGuideEditor({ businessInfo }: GuestGuideEditorProps) {
                     </span>
                   </div>
                 )}
-              </div>
+              </m.div>
             );
           })}
         </div>

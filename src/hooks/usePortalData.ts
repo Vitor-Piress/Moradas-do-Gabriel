@@ -17,6 +17,7 @@ import {
   getAllLinks,
   getAnalyticsSummary,
   getBusinessInfo,
+  reorderAccommodations,
   reorderLinks,
   saveBusinessInfo,
   updateAccommodation,
@@ -109,10 +110,17 @@ export function useAccommodationMutations() {
     onSuccess: invalidateAccommodations,
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: (items: Array<{ id: string; position: number }>) =>
+      reorderAccommodations(items),
+    onSuccess: invalidateAccommodations,
+  });
+
   return {
     createMutation,
     updateMutation,
     deleteMutation,
+    reorderMutation,
   };
 }
 
