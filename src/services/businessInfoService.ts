@@ -30,7 +30,8 @@ export const DEFAULT_BUSINESS_METADATA: BusinessInfoMetadata = {
     password: "bemvindomoradas",
   },
   location: {
-    address: "Consulte a recepção para o endereço completo da Pousada Moradas do Gabriel",
+    address:
+      "Consulte a recepção para o endereço completo da Pousada Moradas do Gabriel",
     maps_url: "https://maps.google.com",
     waze_url: "https://waze.com/ul",
     embed_url: "",
@@ -140,7 +141,7 @@ export const DEFAULT_BUSINESS_METADATA: BusinessInfoMetadata = {
           badge: "Localização",
           title: "Clima Solar & Mar",
           description:
-            "Fácil acesso às melhores praias, restaurantes e passeios da região.",
+            "Fácil acesso às melhores praias, restaurantes e passeios da região. A 500m da praia.",
         },
         {
           badge: "Aconchego",
@@ -211,8 +212,7 @@ export function normalizeBusinessMetadata(
             : `wifi-${idx + 1}`,
         label: typeof item.label === "string" ? item.label.trim() : "",
         ssid: typeof item.ssid === "string" ? item.ssid.trim() : "",
-        password:
-          typeof item.password === "string" ? item.password.trim() : "",
+        password: typeof item.password === "string" ? item.password.trim() : "",
       }))
       .filter((item) => item.ssid !== "" || item.password !== "");
   } else if (rawWifi) {
@@ -263,11 +263,7 @@ export function normalizeBusinessMetadata(
               ? sanitizeHttpUrl(item.image_url, { allowRelative: false })
               : "";
           const images =
-            rawImages.length > 0
-              ? rawImages
-              : singleImage
-                ? [singleImage]
-                : [];
+            rawImages.length > 0 ? rawImages : singleImage ? [singleImage] : [];
 
           return {
             name: typeof item.name === "string" ? item.name : "",
@@ -557,9 +553,9 @@ export async function saveBusinessInfo(
               .map((img) => sanitizeHttpUrl(img, { allowRelative: false }))
               .filter(Boolean)
           : p.image_url?.trim()
-            ? [
-                sanitizeHttpUrl(p.image_url, { allowRelative: false }),
-              ].filter(Boolean)
+            ? [sanitizeHttpUrl(p.image_url, { allowRelative: false })].filter(
+                Boolean,
+              )
             : [];
         return {
           name: p.name.trim(),
