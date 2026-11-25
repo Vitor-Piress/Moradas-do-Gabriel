@@ -1,11 +1,14 @@
 import {
   BedDouble,
+  Check,
   Compass,
   ExternalLink,
   Globe,
+  HardDrive,
   Link2,
   Loader2,
   LogOut,
+  X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -30,6 +33,7 @@ import {
   useBusinessInfo,
 } from "../../hooks/usePortalData";
 import {
+  cleanupOrphanImagesInR2,
   DEFAULT_BUSINESS_METADATA,
   DEFAULT_LANDING_METADATA,
 } from "../../services";
@@ -59,6 +63,11 @@ export function AdminDashboard() {
     useState<LandingDraftPreview | null>(null);
   const [linksDraft, setLinksDraft] = useState<LinkRow[] | null>(null);
   const [guideDraft, setGuideDraft] = useState<GuideDraftPreview | null>(null);
+  const [isCleaningR2, setIsCleaningR2] = useState(false);
+  const [r2CleanupFeedback, setR2CleanupFeedback] = useState<{
+    kind: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const effectiveAccommodationsDraft = useMemo<AccommodationDraftPreview>(
     () =>
@@ -97,6 +106,34 @@ export function AdminDashboard() {
   const handleSignOut = async () => {
     await signOut();
     navigate("/login", { replace: true });
+  };
+
+  const handleCleanupOrphanR2 = async () => {
+    const confirmed = window.confirm(
+      "Salve suas alterações pendentes antes de continuar. Deseja remover do Cloudflare R2 todas as imagens antigas que não estão mais em uso no site?",
+    );
+    if (!confirmed) return;
+
+    setIsCleaningR2(true);
+    setR2CleanupFeedback(null);
+    try {
+      const result = await cleanupOrphanImagesInR2();
+      const message =
+        result.deletedCount > 0
+          ? `Limpeza concluída: ${result.deletedCount} ${result.deletedCount === 1 ? "imagem antiga removida" : "imagens antigas removidas"} do R2 (${result.inUse} em uso preservadas).`
+          : `R2 já está limpo: nenhuma imagem sem uso encontrada (${result.inUse} ${result.inUse === 1 ? "arquivo em uso" : "arquivos em uso"}).`;
+      setR2CleanupFeedback({ kind: "success", message });
+    } catch (err) {
+      setR2CleanupFeedback({
+        kind: "error",
+        message:
+          err instanceof Error
+            ? err.message
+            : "Não foi possível limpar arquivos antigos no R2.",
+      });
+    } finally {
+      setIsCleaningR2(false);
+    }
   };
 
   return (
@@ -157,6 +194,24 @@ export function AdminDashboard() {
 
             <button
               type="button"
+              onClick={() => void handleCleanupOrphanR2()}
+              disabled={isCleaningR2}
+              aria-label="Limpar imagens sem uso no Cloudflare R2"
+              title="Remove do R2 imagens antigas que não estão mais em uso no site"
+              className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-xl bg-white border border-brand-navy/12 hover:bg-brand-surface text-brand-navy text-xs font-semibold transition-colors disabled:opacity-55"
+            >
+              {isCleaningR2 ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+              ) : (
+                <HardDrive className="w-3.5 h-3.5 shrink-0" />
+              )}
+              <span className="hidden md:inline">
+                {isCleaningR2 ? "Limpando R2..." : "Limpar R2"}
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={handleSignOut}
               aria-label="Sair do painel administrativo"
               className="inline-flex items-center gap-1.5 min-h-11 px-3 rounded-xl bg-white border border-brand-navy/12 hover:bg-brand-surface text-brand-navy text-xs font-semibold transition-colors"
@@ -170,6 +225,30 @@ export function AdminDashboard() {
 
       {/* Conteúdo Principal */}
       <main className="max-w-[1440px] mx-auto px-4 sm:px-6 pt-6 space-y-6">
+        {r2CleanupFeedback && (
+          <div
+            role={r2CleanupFeedback.kind === "error" ? "alert" : "status"}
+            className="rounded-2xl bg-white border border-brand-navy/15 px-4 py-3 shadow-xs flex items-center justify-between gap-3 text-xs sm:text-sm font-medium text-brand-navy"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              {r2CleanupFeedback.kind === "success" ? (
+                <Check className="w-4 h-4 shrink-0 text-brand-navy" />
+              ) : (
+                <HardDrive className="w-4 h-4 shrink-0 text-brand-navy" />
+              )}
+              <span className="break-words">{r2CleanupFeedback.message}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setR2CleanupFeedback(null)}
+              aria-label="Fechar aviso da limpeza do R2"
+              className="w-9 h-9 rounded-lg bg-brand-bg border border-brand-navy/10 flex items-center justify-center shrink-0 hover:bg-brand-surface transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* 1. Resumo de Analytics */}
         <AnalyticsOverview
           summary={analytics}

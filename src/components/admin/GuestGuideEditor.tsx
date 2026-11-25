@@ -23,7 +23,14 @@ import {
   Wifi,
 } from "lucide-react";
 import { m, useReducedMotion } from "motion/react";
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import type {
   BusinessInfoMetadata,
   PlaceTip,
@@ -31,7 +38,11 @@ import type {
   WifiNetwork,
 } from "../../@types/database.types";
 import { useSaveBusinessInfo } from "../../hooks/usePortalData";
-import { DEFAULT_BUSINESS_METADATA, uploadImageToR2 } from "../../services";
+import {
+  DEFAULT_BUSINESS_METADATA,
+  deleteImagesFromR2,
+  uploadImageToR2,
+} from "../../services";
 import {
   containsIframeTag,
   extractEmbedUrl,
@@ -207,6 +218,37 @@ export function GuestGuideEditor({
   // Feedback de salvamento
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const sessionUploadsRef = useRef<Set<string>>(new Set());
+
+  const collectAllPlaceImageUrls = (items: PlaceTip[]): string[] => {
+    const urls: string[] = [];
+    for (const p of items) {
+      if (Array.isArray(p.images) && p.images.length > 0) {
+        for (const img of p.images) {
+          if (img?.trim()) urls.push(img.trim());
+        }
+      } else if (p.image_url?.trim()) {
+        urls.push(p.image_url.trim());
+      }
+    }
+    return Array.from(new Set(urls));
+  };
+
+  const cleanupUnsavedGuideUrls = (
+    candidates: string[],
+    stillReferencedUrls: string[],
+  ) => {
+    const refSet = new Set(stillReferencedUrls.map((u) => u.trim()).filter(Boolean));
+    const toDelete = Array.from(
+      new Set(candidates.map((u) => u.trim()).filter(Boolean)),
+    ).filter((u) => sessionUploadsRef.current.has(u) && !refSet.has(u));
+
+    if (toDelete.length === 0) return;
+    for (const u of toDelete) {
+      sessionUploadsRef.current.delete(u);
+    }
+    void deleteImagesFromR2(toDelete);
+  };
 
   const handleEmbedUrlChange = (rawInput: string) => {
     if (containsIframeTag(rawInput)) {
@@ -364,6 +406,7 @@ export function GuestGuideEditor({
       const uploaded: string[] = [];
       for (const file of files) {
         const url = await uploadImageToR2(file, "lugares");
+        sessionUploadsRef.current.add(url);
         uploaded.push(url);
       }
       setNewPlaceImages((prev) => [...prev, ...uploaded]);
@@ -380,8 +423,16 @@ export function GuestGuideEditor({
   };
 
   const handleRemoveNewPlaceImage = (imgIdx: number) => {
-    setNewPlaceImages((prev) => prev.filter((_, i) => i !== imgIdx));
+    const removedUrl = newPlaceImages[imgIdx] ?? "";
+    const remainingNew = newPlaceImages.filter((_, i) => i !== imgIdx);
+    setNewPlaceImages(remainingNew);
     setPreviewImageIdx(0);
+    if (removedUrl) {
+      cleanupUnsavedGuideUrls(
+        [removedUrl],
+        [...remainingNew, ...collectAllPlaceImageUrls(placesTips)],
+      );
+    }
   };
 
   const handleExistingPlaceImageUpload = async (
@@ -397,6 +448,7 @@ export function GuestGuideEditor({
       const uploaded: string[] = [];
       for (const file of files) {
         const url = await uploadImageToR2(file, "lugares");
+        sessionUploadsRef.current.add(url);
         uploaded.push(url);
       }
       setPlacesTips((prev) =>
@@ -423,30 +475,48 @@ export function GuestGuideEditor({
   };
 
   const handleRemoveExistingPlaceImage = (placeIdx: number, imgIdx: number) => {
-    setPlacesTips((prev) =>
-      prev.map((place, i) => {
-        if (i !== placeIdx) return place;
-        const nextImages = getPlaceImagesList(place).filter(
-          (_, idx) => idx !== imgIdx,
-        );
-        return {
-          ...place,
-          image_url: nextImages[0] ?? "",
-          images: nextImages,
-        };
-      }),
-    );
+    const targetPlace = placesTips[placeIdx];
+    const removedUrl = targetPlace
+      ? (getPlaceImagesList(targetPlace)[imgIdx] ?? "")
+      : "";
+    const nextPlaces = placesTips.map((place, i) => {
+      if (i !== placeIdx) return place;
+      const nextImages = getPlaceImagesList(place).filter(
+        (_, idx) => idx !== imgIdx,
+      );
+      return {
+        ...place,
+        image_url: nextImages[0] ?? "",
+        images: nextImages,
+      };
+    });
+    setPlacesTips(nextPlaces);
     setPreviewImageIdx(0);
+    if (removedUrl) {
+      cleanupUnsavedGuideUrls(
+        [removedUrl],
+        [...newPlaceImages, ...collectAllPlaceImageUrls(nextPlaces)],
+      );
+    }
   };
 
   const handleRemovePlace = (index: number) => {
-    setPlacesTips((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      if (typeof previewPlaceIndex === "number" && previewPlaceIndex >= next.length) {
-        setPreviewPlaceIndex(Math.max(0, next.length - 1));
-      }
-      return next;
-    });
+    const removedPlace = placesTips[index];
+    const removedUrls = removedPlace ? getPlaceImagesList(removedPlace) : [];
+    const nextPlaces = placesTips.filter((_, i) => i !== index);
+    setPlacesTips(nextPlaces);
+    if (
+      typeof previewPlaceIndex === "number" &&
+      previewPlaceIndex >= nextPlaces.length
+    ) {
+      setPreviewPlaceIndex(Math.max(0, nextPlaces.length - 1));
+    }
+    if (removedUrls.length > 0) {
+      cleanupUnsavedGuideUrls(removedUrls, [
+        ...newPlaceImages,
+        ...collectAllPlaceImageUrls(nextPlaces),
+      ]);
+    }
   };
 
   const draftMetadata: BusinessInfoMetadata = useMemo(
@@ -546,6 +616,24 @@ export function GuestGuideEditor({
       password: "",
     };
 
+    const previousPersistedPlaceUrls = collectAllPlaceImageUrls(
+      initialMeta.places_tips,
+    );
+    const cleanedPlacesTips: PlaceTip[] = placesTips
+      .map((p) => {
+        const imgs = getPlaceImagesList(p);
+        return {
+          name: p.name.trim(),
+          category: p.category.trim() || "Gastronomia",
+          description: p.description.trim(),
+          link: p.link.trim(),
+          embed_url: extractEmbedUrl(p.embed_url ?? ""),
+          image_url: imgs[0] ?? "",
+          images: imgs,
+        };
+      })
+      .filter((p) => p.name !== "");
+
     try {
       await saveMutation.mutateAsync({
         id: businessInfo?.id || undefined,
@@ -565,20 +653,7 @@ export function GuestGuideEditor({
             instructions: instructions.trim(),
           },
           rules: ruleItems.map((r) => r.text.trim()).filter(Boolean),
-          places_tips: placesTips
-            .map((p) => {
-              const imgs = getPlaceImagesList(p);
-              return {
-                name: p.name.trim(),
-                category: p.category.trim() || "Gastronomia",
-                description: p.description.trim(),
-                link: p.link.trim(),
-                embed_url: extractEmbedUrl(p.embed_url ?? ""),
-                image_url: imgs[0] ?? "",
-                images: imgs,
-              };
-            })
-            .filter((p) => p.name !== ""),
+          places_tips: cleanedPlacesTips,
           contacts: {
             whatsapp: extractPhoneDigits(whatsapp),
             phone: extractPhoneDigits(phone),
@@ -587,6 +662,24 @@ export function GuestGuideEditor({
           landing: initialMeta.landing,
         },
       });
+
+      const keptUrls = new Set([
+        ...collectAllPlaceImageUrls(cleanedPlacesTips),
+        ...newPlaceImages.map((u) => u.trim()).filter(Boolean),
+      ]);
+      const urlsToDelete = Array.from(
+        new Set([...previousPersistedPlaceUrls, ...sessionUploadsRef.current]),
+      ).filter((url) => url && !keptUrls.has(url));
+
+      for (const savedUrl of collectAllPlaceImageUrls(cleanedPlacesTips)) {
+        sessionUploadsRef.current.delete(savedUrl);
+      }
+      for (const deletedUrl of urlsToDelete) {
+        sessionUploadsRef.current.delete(deletedUrl);
+      }
+      if (urlsToDelete.length > 0) {
+        void deleteImagesFromR2(urlsToDelete);
+      }
 
       setSaveSuccess(true);
       window.setTimeout(() => setSaveSuccess(false), 3500);

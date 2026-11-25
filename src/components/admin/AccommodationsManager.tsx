@@ -27,6 +27,7 @@ import { m, useReducedMotion } from "motion/react";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ChangeEvent,
   type FormEvent,
@@ -38,6 +39,7 @@ import type {
 } from "../../@types/database.types";
 import { useAccommodationMutations } from "../../hooks/usePortalData";
 import {
+  deleteImagesFromR2,
   slugifyAccommodationTitle,
   uploadImageToR2,
   type SaveAccommodationPayload,
@@ -110,6 +112,31 @@ export function AccommodationsManager({
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [isUploadingGallery, setIsUploadingGallery] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const sessionUploadsRef = useRef<Set<string>>(new Set());
+
+  const discardUnsavedSessionUploads = () => {
+    const unsaved = Array.from(sessionUploadsRef.current);
+    sessionUploadsRef.current.clear();
+    if (unsaved.length > 0) {
+      void deleteImagesFromR2(unsaved);
+    }
+  };
+
+  const cleanupUnsavedAccUrl = (
+    candidateUrl: string,
+    remainingUrls: string[],
+  ) => {
+    const clean = candidateUrl.trim();
+    if (
+      !clean ||
+      !sessionUploadsRef.current.has(clean) ||
+      remainingUrls.includes(clean)
+    ) {
+      return;
+    }
+    sessionUploadsRef.current.delete(clean);
+    void deleteImagesFromR2([clean]);
+  };
 
   const resetForm = () => {
     setEditingId(null);
@@ -135,6 +162,7 @@ export function AccommodationsManager({
   };
 
   const handleOpenNew = () => {
+    discardUnsavedSessionUploads();
     resetForm();
     setIsFormOpen(true);
     setSelectedPreviewId("draft-new-accommodation");
@@ -142,6 +170,7 @@ export function AccommodationsManager({
   };
 
   const handleOpenEdit = (acc: TypedAccommodation) => {
+    discardUnsavedSessionUploads();
     setEditingId(acc.id.startsWith("demo-") ? null : acc.id);
     setTitle(acc.title);
     setSlug(acc.slug);
@@ -174,11 +203,16 @@ export function AccommodationsManager({
   const handleCoverUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const previousCover = coverImage.trim();
     setFormError(null);
     setIsUploadingCover(true);
     try {
       const uploadedUrl = await uploadImageToR2(file, "acomodacoes");
+      sessionUploadsRef.current.add(uploadedUrl);
       setCoverImage(uploadedUrl);
+      if (previousCover && previousCover !== uploadedUrl) {
+        cleanupUnsavedAccUrl(previousCover, [uploadedUrl, ...gallery]);
+      }
     } catch (err) {
       setFormError(
         err instanceof Error
@@ -191,6 +225,14 @@ export function AccommodationsManager({
     }
   };
 
+  const handleRemoveCoverImage = () => {
+    const previousCover = coverImage.trim();
+    setCoverImage("");
+    if (previousCover) {
+      cleanupUnsavedAccUrl(previousCover, gallery);
+    }
+  };
+
   const handleGalleryUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
@@ -200,6 +242,7 @@ export function AccommodationsManager({
       const uploadedUrls: string[] = [];
       for (const file of files) {
         const url = await uploadImageToR2(file, "acomodacoes");
+        sessionUploadsRef.current.add(url);
         uploadedUrls.push(url);
       }
       setGallery((prev) => [...prev, ...uploadedUrls]);
@@ -216,7 +259,12 @@ export function AccommodationsManager({
   };
 
   const handleRemoveGalleryPhoto = (index: number) => {
-    setGallery((prev) => prev.filter((_, i) => i !== index));
+    const removedUrl = gallery[index]?.trim() ?? "";
+    const remainingGallery = gallery.filter((_, i) => i !== index);
+    setGallery(remainingGallery);
+    if (removedUrl) {
+      cleanupUnsavedAccUrl(removedUrl, [coverImage.trim(), ...remainingGallery]);
+    }
   };
 
   const handleAddBed = () => {
@@ -275,12 +323,36 @@ export function AccommodationsManager({
       is_active: isActive,
     };
 
+    const previousAcc = editingId
+      ? accommodations.find((a) => a.id === editingId)
+      : undefined;
+    const previousPersistedUrls = previousAcc
+      ? [previousAcc.cover_image, ...previousAcc.gallery]
+          .map((u) => u.trim())
+          .filter(Boolean)
+      : [];
+
     try {
       if (editingId) {
         await updateMutation.mutateAsync({ id: editingId, updates: payload });
       } else {
         await createMutation.mutateAsync(payload);
       }
+
+      const nextSavedUrls = new Set(
+        [payload.cover_image, ...payload.gallery]
+          .map((u) => u.trim())
+          .filter(Boolean),
+      );
+      const urlsToDelete = Array.from(
+        new Set([...previousPersistedUrls, ...sessionUploadsRef.current]),
+      ).filter((url) => url && !nextSavedUrls.has(url));
+
+      sessionUploadsRef.current.clear();
+      if (urlsToDelete.length > 0) {
+        void deleteImagesFromR2(urlsToDelete);
+      }
+
       setIsFormOpen(false);
       setPreferDetailView(false);
       resetForm();
@@ -464,7 +536,13 @@ export function AccommodationsManager({
     ) {
       return;
     }
+    const urlsToRemove = [acc.cover_image, ...acc.gallery]
+      .map((u) => u.trim())
+      .filter(Boolean);
     await deleteMutation.mutateAsync(acc.id);
+    if (urlsToRemove.length > 0) {
+      void deleteImagesFromR2(urlsToRemove);
+    }
   };
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -523,6 +601,7 @@ export function AccommodationsManager({
             <button
               type="button"
               onClick={() => {
+                discardUnsavedSessionUploads();
                 setIsFormOpen(false);
                 setPreferDetailView(false);
                 resetForm();
@@ -781,8 +860,9 @@ export function AccommodationsManager({
                 <p className="text-xs font-bold uppercase tracking-wider text-brand-navy">
                   Fotos da Acomodação
                 </p>
-                <p className="text-[11px] text-brand-navy/65">
-                  As imagens enviadas são convertidas automaticamente para WebP
+                <p className="text-[11px] text-brand-ink-muted">
+                  Convertidas automaticamente para WebP em alta definição; fotos
+                  substituídas são removidas do R2 ao salvar
                 </p>
               </div>
 
@@ -830,7 +910,7 @@ export function AccommodationsManager({
                     />
                     <button
                       type="button"
-                      onClick={() => setCoverImage("")}
+                      onClick={handleRemoveCoverImage}
                       className="absolute top-2 right-2 p-1.5 rounded-lg bg-white/90 text-brand-navy shadow-xs hover:bg-white"
                       title="Remover foto de capa"
                     >
@@ -1035,6 +1115,7 @@ export function AccommodationsManager({
               <button
                 type="button"
                 onClick={() => {
+                  discardUnsavedSessionUploads();
                   setIsFormOpen(false);
                   setPreferDetailView(false);
                   resetForm();

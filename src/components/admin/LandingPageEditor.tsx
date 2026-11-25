@@ -16,7 +16,14 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import type {
   AboutHighlightItem,
   HeroSlideItem,
@@ -27,6 +34,7 @@ import { useSaveBusinessInfo } from "../../hooks/usePortalData";
 import {
   DEFAULT_BUSINESS_METADATA,
   DEFAULT_LANDING_METADATA,
+  deleteImagesFromR2,
   uploadImageToR2,
 } from "../../services";
 import {
@@ -43,6 +51,17 @@ interface LandingPageEditorProps {
 
 function formatChapterNumber(n: number): string {
   return String(n).padStart(2, "0");
+}
+
+function collectLandingImageUrls(landing: LandingPageMetadata): string[] {
+  const urls: string[] = [];
+  for (const slide of landing.hero_slides ?? []) {
+    if (slide.image_url?.trim()) urls.push(slide.image_url.trim());
+  }
+  if (landing.about?.image_url?.trim()) {
+    urls.push(landing.about.image_url.trim());
+  }
+  return Array.from(new Set(urls));
 }
 
 export function LandingPageEditor({
@@ -91,6 +110,23 @@ export function LandingPageEditor({
   const [isUploadingAboutImage, setIsUploadingAboutImage] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const sessionUploadsRef = useRef<Set<string>>(new Set());
+
+  const cleanupUnsavedUrlIfUnused = (
+    candidateUrl: string,
+    remainingUrls: string[],
+  ) => {
+    const clean = candidateUrl.trim();
+    if (
+      !clean ||
+      !sessionUploadsRef.current.has(clean) ||
+      remainingUrls.includes(clean)
+    ) {
+      return;
+    }
+    sessionUploadsRef.current.delete(clean);
+    void deleteImagesFromR2([clean]);
+  };
 
   const handleUpdateSlide = (
     index: number,
@@ -121,6 +157,14 @@ export function LandingPageEditor({
   };
 
   const handleRemoveSlide = (index: number) => {
+    const removedUrl = heroSlides[index]?.image_url?.trim() ?? "";
+    const remainingUrls = [
+      ...heroSlides
+        .filter((_, i) => i !== index)
+        .map((s) => s.image_url?.trim() ?? ""),
+      aboutImageUrl.trim(),
+    ].filter(Boolean);
+
     setHeroSlides((prev) => {
       const next = prev.filter((_, i) => i !== index);
       if (previewSlideIndex >= next.length) {
@@ -128,6 +172,10 @@ export function LandingPageEditor({
       }
       return next;
     });
+
+    if (removedUrl) {
+      cleanupUnsavedUrlIfUnused(removedUrl, remainingUrls);
+    }
   };
 
   const handleSlideImageUpload = async (
@@ -136,12 +184,23 @@ export function LandingPageEditor({
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const previousUrl = heroSlides[index]?.image_url?.trim() ?? "";
     setSaveError(null);
     setUploadingSlideIndex(index);
     setPreviewSlideIndex(index);
     try {
       const url = await uploadImageToR2(file, "hero");
+      sessionUploadsRef.current.add(url);
       handleUpdateSlide(index, "image_url", url);
+
+      if (previousUrl && previousUrl !== url) {
+        const remainingUrls = [
+          ...heroSlides
+            .map((s, i) => (i === index ? url : s.image_url?.trim() ?? "")),
+          aboutImageUrl.trim(),
+        ].filter(Boolean);
+        cleanupUnsavedUrlIfUnused(previousUrl, remainingUrls);
+      }
     } catch (err) {
       setSaveError(
         err instanceof Error
@@ -157,11 +216,21 @@ export function LandingPageEditor({
   const handleAboutImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const previousUrl = aboutImageUrl.trim();
     setSaveError(null);
     setIsUploadingAboutImage(true);
     try {
       const url = await uploadImageToR2(file, "sobre");
+      sessionUploadsRef.current.add(url);
       setAboutImageUrl(url);
+
+      if (previousUrl && previousUrl !== url) {
+        const remainingUrls = [
+          ...heroSlides.map((s) => s.image_url?.trim() ?? ""),
+          url,
+        ].filter(Boolean);
+        cleanupUnsavedUrlIfUnused(previousUrl, remainingUrls);
+      }
     } catch (err) {
       setSaveError(
         err instanceof Error
@@ -189,6 +258,42 @@ export function LandingPageEditor({
     setSaveError(null);
     setSaveSuccess(false);
 
+    const previousPersistedUrls = collectLandingImageUrls(initialLanding);
+    const nextLandingPayload: LandingPageMetadata = {
+      hero_slides: heroSlides
+        .map((s, idx) => ({
+          id: s.id || `slide-${idx + 1}`,
+          topic: s.topic.trim() || "Destaque",
+          title: s.title.trim(),
+          subtitle: s.subtitle.trim(),
+          image_url: s.image_url.trim(),
+          cta_label: s.cta_label.trim() || "Ver acomodações",
+          cta_href: s.cta_href.trim() || "#acomodacoes",
+        }))
+        .filter((s) => s.title !== ""),
+      about: {
+        badge: aboutBadge.trim() || "Sobre a pousada",
+        title: aboutTitle.trim(),
+        description: aboutDescription.trim(),
+        secondary_description: aboutSecondaryDescription.trim(),
+        image_url: aboutImageUrl.trim(),
+        highlights: aboutHighlights
+          .map((h) => ({
+            badge: h.badge.trim(),
+            title: h.title.trim(),
+            description: h.description.trim(),
+          }))
+          .filter((h) => h.title !== ""),
+      },
+      footer: {
+        company_name: companyName.trim() || "Pousada Moradas do Gabriel",
+        cnpj: cnpj.trim(),
+        check_in_out_info: checkInOutInfo.trim(),
+        copyright_note:
+          copyrightNote.trim() || "Todos os direitos reservados.",
+      },
+    };
+
     try {
       await saveMutation.mutateAsync({
         id: businessInfo?.id || undefined,
@@ -196,43 +301,19 @@ export function LandingPageEditor({
         content: businessInfo?.content,
         metadata: {
           ...initialMeta,
-          landing: {
-            hero_slides: heroSlides
-              .map((s, idx) => ({
-                id: s.id || `slide-${idx + 1}`,
-                topic: s.topic.trim() || "Destaque",
-                title: s.title.trim(),
-                subtitle: s.subtitle.trim(),
-                image_url: s.image_url.trim(),
-                cta_label: s.cta_label.trim() || "Ver acomodações",
-                cta_href: s.cta_href.trim() || "#acomodacoes",
-              }))
-              .filter((s) => s.title !== ""),
-            about: {
-              badge: aboutBadge.trim() || "Sobre a pousada",
-              title: aboutTitle.trim(),
-              description: aboutDescription.trim(),
-              secondary_description: aboutSecondaryDescription.trim(),
-              image_url: aboutImageUrl.trim(),
-              highlights: aboutHighlights
-                .map((h) => ({
-                  badge: h.badge.trim(),
-                  title: h.title.trim(),
-                  description: h.description.trim(),
-                }))
-                .filter((h) => h.title !== ""),
-            },
-            footer: {
-              company_name:
-                companyName.trim() || "Pousada Moradas do Gabriel",
-              cnpj: cnpj.trim(),
-              check_in_out_info: checkInOutInfo.trim(),
-              copyright_note:
-                copyrightNote.trim() || "Todos os direitos reservados.",
-            },
-          },
+          landing: nextLandingPayload,
         },
       });
+
+      const nextSavedUrls = new Set(collectLandingImageUrls(nextLandingPayload));
+      const urlsToDelete = Array.from(
+        new Set([...previousPersistedUrls, ...sessionUploadsRef.current]),
+      ).filter((url) => url && !nextSavedUrls.has(url));
+
+      sessionUploadsRef.current.clear();
+      if (urlsToDelete.length > 0) {
+        void deleteImagesFromR2(urlsToDelete);
+      }
 
       setSaveSuccess(true);
       window.setTimeout(() => setSaveSuccess(false), 3500);

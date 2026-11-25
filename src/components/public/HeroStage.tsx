@@ -58,9 +58,9 @@ export function HeroStage({
     offset: ["start start", "end start"],
   });
 
-  // Bleed vertical (-inset-y-[10%]) impede borda vazia no topo/rodapé durante o parallax
-  const photoY = useTransform(scrollYProgress, [0, 1], ["-4%", "10%"]);
-  const photoScale = useTransform(scrollYProgress, [0, 1], [1, 1.07]);
+  // Bleed vertical contido (-inset-y-[5%]) evita bordas vazias no parallax sem ampliar excessivamente a foto
+  const photoY = useTransform(scrollYProgress, [0, 1], ["-2.5%", "4.5%"]);
+  const photoScale = useTransform(scrollYProgress, [0, 1], [1, 1.035]);
   const contentY = useTransform(scrollYProgress, [0, 1], ["0%", "-10%"]);
   const contentOpacity = useTransform(scrollYProgress, [0, 0.85], [1, 0.25]);
 
@@ -173,11 +173,9 @@ export function HeroStage({
       <div aria-hidden="true" className="absolute inset-0 overflow-hidden">
         <m.div
           style={
-            prefersReducedMotion
-              ? undefined
-              : { y: photoY, scale: photoScale }
+            prefersReducedMotion ? undefined : { y: photoY, scale: photoScale }
           }
-          className="absolute -inset-y-[10%] inset-x-0"
+          className="absolute -inset-y-[5%] inset-x-0"
         >
           <AnimatePresence initial={false}>
             {currentSlide?.image_url && (
@@ -185,7 +183,7 @@ export function HeroStage({
                 key={currentSlide.image_url || currentSlide.id}
                 initial={{
                   opacity: 0,
-                  scale: prefersReducedMotion ? 1 : 1.07,
+                  scale: prefersReducedMotion ? 1 : 1.035,
                 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0 }}
